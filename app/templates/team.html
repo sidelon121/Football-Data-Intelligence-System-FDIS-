@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ overview.team.name }}{% endblock %}
+{% block header_title %}Team Analysis{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{{ overview.team.name }}</h2>
+    <p class="subtitle">{{ overview.team.league or '' }} {{ '| ' + overview.team.country if overview.team.country else '' }}</p>
+</div>
+
+<!-- Key Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">🏟️</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.matches_played }}</div>
+            <div class="stat-label">Matches</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">🏆</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.wins }}W {{ overview.draws }}D {{ overview.losses }}L</div>
+            <div class="stat-label">Record</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">📊</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.points }}</div>
+            <div class="stat-label">Points</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">🎯</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.win_rate }}%</div>
+            <div class="stat-label">Win Rate</div>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon green">⚽</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.goals_for }}</div>
+            <div class="stat-label">Goals Scored ({{ overview.avg_goals_per_match }}/game)</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">🛡️</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.goals_against }}</div>
+            <div class="stat-label">Goals Conceded</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue">🎯</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.avg_xg }}</div>
+            <div class="stat-label">Average xG</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">🧤</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.clean_sheets }}</div>
+            <div class="stat-label">Clean Sheets ({{ overview.clean_sheet_rate }}%)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Form -->
+<div class="card mb-3">
+    <div class="card-header">
+        <span class="card-title">📊 Recent Form</span>
+    </div>
+    <div class="flex gap-1">
+        {% for f in overview.form %}
+        <span class="form-badge {{ f }}">{{ f }}</span>
+        {% endfor %}
+    </div>
+    <div class="mt-2" style="font-size:0.85rem; color:var(--text-secondary);">
+        Possession: {{ overview.avg_possession }}% · Pass Accuracy: {{ overview.avg_pass_accuracy }}% ·
+        Avg Shots: {{ overview.avg_shots }} · Avg Tackles: {{ overview.avg_tackles }}
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="grid-2 mb-3">
+    {% if charts.radar %}
+    <div class="card">
+        <div id="chart-radar" class="chart-container"
+             data-chart='{{ charts.radar | tojson }}'></div>
+    </div>
+    {% endif %}
+
+    {% if charts.form %}
+    <div class="card">
+        <div id="chart-form" class="chart-container"
+             data-chart='{{ charts.form | tojson }}'></div>
+    </div>
+    {% endif %}
+</div>
+
+{% if charts.trends %}
+<div class="card mb-3">
+    <div id="chart-trends" class="chart-container"
+         data-chart='{{ charts.trends | tojson }}'></div>
+</div>
+{% endif %}
+
+<!-- Automated Analysis -->
+<div class="card mb-3">
+    <div class="card-header">
+        <span class="card-title">📝 Automated Analysis</span>
+        <div class="flex gap-1">
+            <a href="/api/export/pdf/team/{{ overview.team.id }}" class="btn btn-outline btn-sm">📄 PDF</a>
+            <a href="/api/export/pptx/team/{{ overview.team.id }}" class="btn btn-outline btn-sm">📊 PPTX</a>
+        </div>
+    </div>
+    <div class="analysis-text">
+        {% for paragraph in analysis_text.split('\n\n') %}
+        <p>{{ paragraph | safe }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ analysis.match.home_team.name }} vs {{ analysis.match.away_team.name }}{% endblock %}
+{% block header_title %}Match Analysis{% endblock %}
+
+{% block content %}
+{% set match = analysis.match %}
+{% set hs = analysis.home_stats %}
+{% set as = analysis.away_stats %}
+
+<!-- Scoreboard -->
+<div class="card mb-3">
+    <div class="text-center text-muted mb-1" style="font-size:0.8rem;">
+        {{ match.league or '' }} · {{ match.date }} · {{ match.venue or '' }}
+    </div>
+    <div class="scoreboard">
+        <div>
+            <div class="team-name">{{ match.home_team.name }}</div>
+            <div class="text-muted" style="font-size:0.8rem;">Home</div>
+        </div>
+        <div class="score">
+            {{ match.home_goals }}<span class="score-separator">–</span>{{ match.away_goals }}
+        </div>
+        <div>
+            <div class="team-name">{{ match.away_team.name }}</div>
+            <div class="text-muted" style="font-size:0.8rem;">Away</div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Comparison -->
+{% if analysis.metrics %}
+<div class="card mb-3">
+    <div class="card-header">
+        <span class="card-title">📊 Match Statistics</span>
+        <a href="/api/export/pdf/match/{{ match.id }}" class="btn btn-outline btn-sm">📄 Download PDF</a>
+    </div>
+    <!-- Stat Bars -->
+    {% for key, metric in analysis.metrics.items() %}
+    <div style="margin-bottom:16px;">
+        <div class="flex-between mb-1" style="font-size:0.85rem;">
+            <span style="font-weight:600; {% if metric.dominant == 'home' %}color:var(--accent){% endif %}">
+                {{ metric.home }}{{ metric.unit }}
+            </span>
+            <span class="text-muted">{{ metric.label }}</span>
+            <span style="font-weight:600; {% if metric.dominant == 'away' %}color:var(--accent){% endif %}">
+                {{ metric.away }}{{ metric.unit }}
+            </span>
+        </div>
+        <div style="display:flex; gap:4px; height:8px;">
+            {% set total = metric.home + metric.away %}
+            {% if total > 0 %}
+            <div style="flex:{{ metric.home }}; background: {% if metric.dominant == 'home' %}var(--primary){% else %}rgba(102,126,234,0.3){% endif %}; border-radius:4px 0 0 4px;"></div>
+            <div style="flex:{{ metric.away }}; background: {% if metric.dominant == 'away' %}var(--danger){% else %}rgba(248,81,73,0.3){% endif %}; border-radius:0 4px 4px 0;"></div>
+            {% else %}
+            <div style="flex:1; background:var(--border); border-radius:4px;"></div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Chart -->
+{% if chart %}
+<div class="card mb-3">
+    <div id="chart-match" class="chart-container"
+         data-chart='{{ chart | tojson }}'></div>
+</div>
+{% endif %}
+
+<!-- Player Stats -->
+{% if player_stats %}
+<div class="card mb-3">
+    <div class="card-header">
+        <span class="card-title">⭐ Player Performances</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Min</th>
+                <th>Rating</th>
+                <th>Goals</th>
+                <th>Assists</th>
+                <th>Shots</th>
+                <th>Passes</th>
+                <th>Tackles</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ps in player_stats | sort(attribute='rating', reverse=True) %}
+            <tr style="cursor:pointer" onclick="location.href='/players/{{ ps.player_id }}'">
+                <td><a href="/players/{{ ps.player_id }}">{{ ps.player.name }}</a></td>
+                <td>{{ ps.minutes_played }}'</td>
+                <td>
+                    <span class="badge {% if ps.rating and ps.rating >= 8 %}badge-success{% elif ps.rating and ps.rating >= 7 %}badge-info{% elif ps.rating and ps.rating >= 6 %}badge-warning{% else %}badge-danger{% endif %}">
+                        {{ ps.rating or '—' }}
+                    </span>
+                </td>
+                <td>{{ ps.goals or 0 }}</td>
+                <td>{{ ps.assists or 0 }}</td>
+                <td>{{ ps.shots or 0 }}</td>
+                <td>{{ ps.passes or 0 }}</td>
+                <td>{{ ps.tackles or 0 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Automated Summary -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">📝 Match Summary</span>
+    </div>
+    <div class="analysis-text">
+        {% for paragraph in summary_text.split('\n\n') %}
+        <p>{{ paragraph | safe }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

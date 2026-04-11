@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Upload Data{% endblock %}
+{% block header_title %}Upload Data{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📁 Data Upload</h2>
+    <p class="subtitle">Import football data from CSV, Excel files, or enter data manually</p>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <button class="tab active" data-tab="tab-file">File Upload</button>
+    <button class="tab" data-tab="tab-manual">Manual Entry</button>
+    <button class="tab" data-tab="tab-api">API Import</button>
+</div>
+
+<!-- File Upload Tab -->
+<div id="tab-file" class="tab-content active">
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">Upload CSV or Excel File</span>
+            <div class="flex gap-1">
+                <select id="data-type" class="form-select" style="width:auto">
+                    <option value="auto">Auto-Detect Type</option>
+                    <option value="matches">Match Data</option>
+                    <option value="players">Player Data</option>
+                </select>
+            </div>
+        </div>
+
+        <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none">
+
+        <div id="upload-zone" class="upload-zone">
+            <div class="upload-icon">📤</div>
+            <h3>Drop your file here or click to browse</h3>
+            <p>Supports CSV, XLSX, XLS — Max 16 MB</p>
+        </div>
+
+        <div id="upload-progress" class="progress-bar hidden mt-2">
+            <div id="progress-fill" class="progress-fill" style="width:0%"></div>
+        </div>
+
+        <div class="mt-2 flex-between">
+            <div>
+                <a href="/static/uploads/sample_template.csv" class="btn btn-outline btn-sm" download>📥 Download Template</a>
+            </div>
+            <button id="upload-btn" class="btn btn-accent hidden" onclick="uploadFile()">
+                🚀 Upload & Process
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Entry Tab -->
+<div id="tab-manual" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Enter Match Data Manually</span>
+        </div>
+        <form id="manual-entry-form" onsubmit="event.preventDefault(); submitManualEntry();">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Home Team *</label>
+                    <input type="text" name="home_team" class="form-input" placeholder="e.g. Arsenal" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Away Team *</label>
+                    <input type="text" name="away_team" class="form-input" placeholder="e.g. Chelsea" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Home Goals</label>
+                    <input type="number" name="home_goals" class="form-input" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Away Goals</label>
+                    <input type="number" name="away_goals" class="form-input" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="date" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">League</label>
+                    <input type="text" name="league" class="form-input" placeholder="e.g. Premier League">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Season</label>
+                    <input type="text" name="season" class="form-input" placeholder="e.g. 2024/2025">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Venue</label>
+                    <input type="text" name="venue" class="form-input" placeholder="e.g. Emirates Stadium">
+                </div>
+            </div>
+
+            <h4 style="margin: 20px 0 12px; color: var(--text-secondary);">Match Statistics (Optional)</h4>
+            <div class="grid-4">
+                <div class="form-group">
+                    <label class="form-label">Home Possession %</label>
+                    <input type="number" name="home_possession" class="form-input" step="0.1" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Away Possession %</label>
+                    <input type="number" name="away_possession" class="form-input" step="0.1" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Home Shots</label>
+                    <input type="number" name="home_shots" class="form-input" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Away Shots</label>
+                    <input type="number" name="away_shots" class="form-input" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Home xG</label>
+                    <input type="number" name="home_xg" class="form-input" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Away xG</label>
+                    <input type="number" name="away_xg" class="form-input" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Home Passes</label>
+                    <input type="number" name="home_passes" class="form-input" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Away Passes</label>
+                    <input type="number" name="away_passes" class="form-input" min="0">
+                </div>
+            </div>
+            <div class="mt-2">
+                <button type="submit" class="btn btn-accent">💾 Save Match Data</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- API Import Tab -->
+<div id="tab-api" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Import from API-Football</span>
+            <span class="badge badge-info">Requires API Key</span>
+        </div>
+        <p class="text-secondary mb-2">
+            Connect to API-Football to automatically fetch match data, team statistics, and player performances.
+            Set your API key via the <code>API_FOOTBALL_KEY</code> environment variable.
+        </p>
+        <div class="grid-3">
+            <div class="form-group">
+                <label class="form-label">League ID</label>
+                <input type="number" id="api-league" class="form-input" placeholder="e.g. 39 (Premier League)">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Season</label>
+                <input type="number" id="api-season" class="form-input" placeholder="e.g. 2024">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Last N Matches</label>
+                <input type="number" id="api-last" class="form-input" placeholder="Leave empty for all">
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="fetchFromAPI()">🔄 Fetch Data</button>
+    </div>
+</div>
+
+<!-- Upload History -->
+{% if history %}
+<div class="card mt-3">
+    <div class="card-header">
+        <span class="card-title">📋 Upload History</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>File</th>
+                <th>Source</th>
+                <th>Rows</th>
+                <th>Status</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for h in history %}
+            <tr>
+                <td>{{ h.filename }}</td>
+                <td><span class="badge badge-info">{{ h.source_type }}</span></td>
+                <td>{{ h.row_count }}</td>
+                <td>
+                    {% if h.status == 'success' %}
+                        <span class="badge badge-success">Success</span>
+                    {% elif h.status == 'partial' %}
+                        <span class="badge badge-warning">Partial</span>
+                    {% else %}
+                        <span class="badge badge-danger">Failed</span>
+                    {% endif %}
+                </td>
+                <td>{{ h.upload_date.strftime('%d %b %Y %H:%M') if h.upload_date else '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fetchFromAPI() {
+    const leagueId = document.getElementById('api-league').value;
+    const season = document.getElementById('api-season').value;
+    const last = document.getElementById('api-last').value;
+
+    if (!leagueId || !season) {
+        showToast('League ID and Season are required', 'warning');
+        return;
+    }
+
+    showToast('Fetching data from API-Football...', 'info');
+
+    fetch('/api/fetch-api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ league_id: leagueId, season: season, last: last || null }),
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Imported ${data.matches_imported} matches!`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast(data.errors?.[0] || 'API fetch failed', 'error');
+        }
+    })
+    .catch(err => showToast('Error: ' + err.message, 'error'));
+}
+</script>
+{% endblock %}

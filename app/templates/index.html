@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block header_title %}Overview Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Welcome to FDIS</h2>
+    <p class="subtitle">Football Data Intelligence System — Your data-driven football analysis platform</p>
+</div>
+
+<!-- Key Metrics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">🏟️</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ summary.total_matches }}</div>
+            <div class="stat-label">Total Matches</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">👥</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ summary.total_teams }}</div>
+            <div class="stat-label">Teams</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">⭐</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ summary.total_players }}</div>
+            <div class="stat-label">Players</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">📊</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ summary.league_table|length }}</div>
+            <div class="stat-label">League Standings</div>
+        </div>
+    </div>
+</div>
+
+{% if summary.total_matches == 0 %}
+<!-- Empty State -->
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-icon">📁</div>
+        <h3>No Data Yet</h3>
+        <p>Upload your first football data file to get started with interactive analytics and automated insights.</p>
+        <a href="{{ url_for('main.upload') }}" class="btn btn-primary btn-lg">
+            📁 Upload Your First Dataset
+        </a>
+    </div>
+</div>
+{% else %}
+
+<div class="grid-2 mb-3">
+    <!-- Recent Matches -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">🏟️ Recent Matches</span>
+            <a href="{{ url_for('main.matches') }}" class="btn btn-outline btn-sm">View All</a>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Match</th>
+                    <th>Score</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in summary.recent_matches %}
+                <tr style="cursor:pointer" onclick="location.href='/matches/{{ m.id }}'">
+                    <td>{{ m.home_team.name }} vs {{ m.away_team.name }}</td>
+                    <td><strong>{{ m.home_goals }} – {{ m.away_goals }}</strong></td>
+                    <td>{{ m.date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- League Standings (Top 5) -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">🏆 Standings</span>
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline btn-sm">Full Table</a>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Team</th>
+                    <th>P</th>
+                    <th>W</th>
+                    <th>D</th>
+                    <th>L</th>
+                    <th>GD</th>
+                    <th>Pts</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in summary.league_table %}
+                <tr>
+                    <td>{{ t.position }}</td>
+                    <td><a href="/teams/{{ t.team_id }}">{{ t.team_name }}</a></td>
+                    <td>{{ t.played }}</td>
+                    <td>{{ t.wins }}</td>
+                    <td>{{ t.draws }}</td>
+                    <td>{{ t.losses }}</td>
+                    <td>{{ '+' if t.goal_difference >= 0 }}{{ t.goal_difference }}</td>
+                    <td><strong>{{ t.points }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Top Scorers -->
+    {% if summary.top_scorers %}
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">⚽ Top Scorers</span>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr><th>#</th><th>Player</th><th>Goals</th></tr>
+            </thead>
+            <tbody>
+                {% for p in summary.top_scorers %}
+                <tr style="cursor:pointer" onclick="location.href='/players/{{ p.player_id }}'">
+                    <td>{{ loop.index }}</td>
+                    <td>{{ p.name }}</td>
+                    <td><strong>{{ p.goals }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Top Rated -->
+    {% if summary.top_rated %}
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">🌟 Highest Rated</span>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr><th>#</th><th>Player</th><th>Rating</th><th>Matches</th></tr>
+            </thead>
+            <tbody>
+                {% for p in summary.top_rated %}
+                <tr style="cursor:pointer" onclick="location.href='/players/{{ p.player_id }}'">
+                    <td>{{ loop.index }}</td>
+                    <td>{{ p.name }}</td>
+                    <td><strong>{{ p.avg_rating }}</strong></td>
+                    <td>{{ p.matches }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

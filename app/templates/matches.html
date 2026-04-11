@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Matches{% endblock %}
+{% block header_title %}Matches{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>🏟️ Matches</h2>
+    <p class="subtitle">All matches in the database</p>
+</div>
+
+{% if matches.items %}
+<div class="card">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Home Team</th>
+                <th>Score</th>
+                <th>Away Team</th>
+                <th>League</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in matches.items %}
+            <tr>
+                <td>{{ m.date.strftime('%d %b %Y') if m.date else '' }}</td>
+                <td>
+                    <a href="/teams/{{ m.home_team_id }}">{{ m.home_team.name }}</a>
+                </td>
+                <td>
+                    <strong style="font-size:1.1rem;">
+                        {% if m.home_goals > m.away_goals %}
+                            <span class="text-accent">{{ m.home_goals }}</span> – {{ m.away_goals }}
+                        {% elif m.away_goals > m.home_goals %}
+                            {{ m.home_goals }} – <span class="text-accent">{{ m.away_goals }}</span>
+                        {% else %}
+                            {{ m.home_goals }} – {{ m.away_goals }}
+                        {% endif %}
+                    </strong>
+                </td>
+                <td>
+                    <a href="/teams/{{ m.away_team_id }}">{{ m.away_team.name }}</a>
+                </td>
+                <td><span class="badge badge-info">{{ m.league or '—' }}</span></td>
+                <td>
+                    <a href="/matches/{{ m.id }}" class="btn btn-outline btn-sm">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    {% if matches.pages > 1 %}
+    <div class="flex-center gap-1 mt-3">
+        {% if matches.has_prev %}
+        <a href="?page={{ matches.prev_num }}" class="btn btn-outline btn-sm">← Prev</a>
+        {% endif %}
+        <span class="text-muted" style="padding:0 12px;">Page {{ matches.page }} of {{ matches.pages }}</span>
+        {% if matches.has_next %}
+        <a href="?page={{ matches.next_num }}" class="btn btn-outline btn-sm">Next →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-icon">🏟️</div>
+        <h3>No Matches Found</h3>
+        <p>Upload match data to see them listed here.</p>
+        <a href="{{ url_for('main.upload') }}" class="btn btn-primary">📁 Upload Data</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

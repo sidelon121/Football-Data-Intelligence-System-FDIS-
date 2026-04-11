@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ overview.player.name }}{% endblock %}
+{% block header_title %}Player Analysis{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>{{ overview.player.name }}</h2>
+    <p class="subtitle">
+        {{ overview.player.position or '' }}
+        {% if overview.player.team_name %} · {{ overview.player.team_name }}{% endif %}
+        {% if overview.player.nationality %} · {{ overview.player.nationality }}{% endif %}
+    </p>
+</div>
+
+<!-- Key Stats -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">🏟️</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.matches_played }}</div>
+            <div class="stat-label">Matches</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">⚽</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.total_goals }}</div>
+            <div class="stat-label">Goals ({{ overview.goals_per_90 }}/90)</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">🎯</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.total_assists }}</div>
+            <div class="stat-label">Assists ({{ overview.assists_per_90 }}/90)</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">⭐</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.avg_rating }}</div>
+            <div class="stat-label">Avg Rating</div>
+        </div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon blue">🎯</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.shot_accuracy }}%</div>
+            <div class="stat-label">Shot Accuracy</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">📊</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.avg_pass_accuracy }}%</div>
+            <div class="stat-label">Pass Accuracy</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">🏃</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.dribble_success_rate }}%</div>
+            <div class="stat-label">Dribble Success</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">🛡️</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ overview.tackles_per_90 }}</div>
+            <div class="stat-label">Tackles/90</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="grid-2 mb-3">
+    {% if charts.radar %}
+    <div class="card">
+        <div id="chart-radar" class="chart-container"
+             data-chart='{{ charts.radar | tojson }}'></div>
+    </div>
+    {% endif %}
+
+    {% if charts.rating_trend %}
+    <div class="card">
+        <div id="chart-rating" class="chart-container"
+             data-chart='{{ charts.rating_trend | tojson }}'></div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Detailed Stats Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <span class="card-title">📊 Detailed Statistics</span>
+    </div>
+    <div class="grid-3">
+        <div>
+            <h4 style="color:var(--primary-light); margin-bottom:12px; font-size:0.9rem;">⚽ Attacking</h4>
+            <div style="margin-bottom:8px;"><span class="text-muted">Total Shots:</span> {{ overview.total_shots }}</div>
+            <div style="margin-bottom:8px;"><span class="text-muted">On Target:</span> {{ overview.total_shots_on_target }}</div>
+            <div style="margin-bottom:8px;"><span class="text-muted">Key Passes:</span> {{ overview.total_key_passes }}</div>
+            <div style="margin-bottom:8px;"><span class="text-muted">Dribbles:</span> {{ overview.total_dribbles_succeeded }}/{{ overview.total_dribbles_attempted }}</div>
+        </div>
+        <div>
+            <h4 style="color:var(--accent); margin-bottom:12px; font-size:0.9rem;">📊 Passing</h4>
+            <div style="margin-bottom:8px;"><span class="text-muted">Total Passes:</span> {{ overview.total_passes }}</div>
+            <div style="margin-bottom:8px;"><span class="text-muted">Accuracy:</span> {{ overview.avg_pass_accuracy }}%</div>
+            <div style="margin-bottom:8px;"><span class="text-muted">Key Passes/90:</span> {{ overview.key_passes_per_90 }}</div>
+        </div>
+        <div>
+            <h4 style="color:var(--warning); margin-bottom:12px; font-size:0.9rem;">🛡️ Defensive</h4>
+            <div style="margin-bottom:8px;"><span class="text-muted">Tackles:</span> {{ overview.total_tackles }}</div>
+            <div style="margin-bottom:8px;"><span class="text-muted">Interceptions:</span> {{ overview.total_interceptions }}</div>
+            <div style="margin-bottom:8px;"><span class="text-muted">Tackles/90:</span> {{ overview.tackles_per_90 }}</div>
+            <div style="margin-bottom:8px;"><span class="text-muted">Interceptions/90:</span> {{ overview.interceptions_per_90 }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Automated Analysis -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">📝 Automated Analysis</span>
+    </div>
+    <div class="analysis-text">
+        {% for paragraph in analysis_text.split('\n\n') %}
+        <p>{{ paragraph | safe }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

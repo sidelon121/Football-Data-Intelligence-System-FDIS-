@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Players{% endblock %}
+{% block header_title %}Players{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>⭐ Players</h2>
+    <p class="subtitle">All players in the database</p>
+</div>
+
+{% if players %}
+<div class="card">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Team</th>
+                <th>Nationality</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in players %}
+            <tr>
+                <td>{{ p.shirt_number or '—' }}</td>
+                <td><a href="/players/{{ p.id }}">{{ p.name }}</a></td>
+                <td><span class="badge badge-primary">{{ p.position or '—' }}</span></td>
+                <td>
+                    {% if p.team %}
+                    <a href="/teams/{{ p.team_id }}">{{ p.team.name }}</a>
+                    {% else %}—{% endif %}
+                </td>
+                <td>{{ p.nationality or '—' }}</td>
+                <td><a href="/players/{{ p.id }}" class="btn btn-outline btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-icon">⭐</div>
+        <h3>No Players Found</h3>
+        <p>Upload player data to see them listed here.</p>
+        <a href="{{ url_for('main.upload') }}" class="btn btn-primary">📁 Upload Data</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

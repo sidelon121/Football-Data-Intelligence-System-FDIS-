@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Teams{% endblock %}
+{% block header_title %}Teams{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>👥 Teams</h2>
+    <p class="subtitle">All teams in the database</p>
+</div>
+
+{% if teams %}
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+    {% for team in teams %}
+    <a href="{{ url_for('main.team_detail', team_id=team.id) }}" class="stat-card" style="text-decoration:none; cursor:pointer;">
+        <div class="stat-icon blue">👥</div>
+        <div class="stat-info">
+            <div class="stat-value" style="font-size:1.15rem">{{ team.name }}</div>
+            <div class="stat-label">{{ team.league or 'Unknown League' }}</div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-icon">👥</div>
+        <h3>No Teams Found</h3>
+        <p>Upload match data to automatically populate teams.</p>
+        <a href="{{ url_for('main.upload') }}" class="btn btn-primary">📁 Upload Data</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Compare{% endblock %}
+{% block header_title %}Comparison Tool{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>⚖️ Comparison Tool</h2>
+    <p class="subtitle">Compare teams or players side by side</p>
+</div>
+
+<!-- Comparison Selector -->
+<div class="card mb-3">
+    <div class="card-header">
+        <span class="card-title">Select Items to Compare</span>
+    </div>
+    <div class="grid-4" style="align-items:end;">
+        <div class="form-group">
+            <label class="form-label">Compare Type</label>
+            <select id="compare-type" class="form-select" onchange="updateCompareOptions()">
+                <option value="team">Teams</option>
+                <option value="player">Players</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">First</label>
+            <select id="compare-id1" class="form-select">
+                <option value="">Select...</option>
+                {% for team in teams %}
+                <option value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Second</label>
+            <select id="compare-id2" class="form-select">
+                <option value="">Select...</option>
+                {% for team in teams %}
+                <option value="{{ team.id }}">{{ team.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <button class="btn btn-accent w-full" onclick="loadComparison()" style="margin-top:4px;">
+                ⚖️ Compare
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Comparison Results -->
+<div id="comparison-result">
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-icon">⚖️</div>
+            <h3>Select Two Items to Compare</h3>
+            <p>Choose a comparison type and select two teams or players to see a detailed side-by-side analysis.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const teamsData = {{ teams | map(attribute='id') | list | tojson }};
+const teamsNames = {{ teams | map(attribute='name') | list | tojson }};
+const playersData = {{ players | map(attribute='id') | list | tojson }};
+const playersNames = {{ players | map(attribute='name') | list | tojson }};
+
+function updateCompareOptions() {
+    const type = document.getElementById('compare-type').value;
+    const sel1 = document.getElementById('compare-id1');
+    const sel2 = document.getElementById('compare-id2');
+
+    const ids = type === 'team' ? teamsData : playersData;
+    const names = type === 'team' ? teamsNames : playersNames;
+
+    [sel1, sel2].forEach(sel => {
+        sel.innerHTML = '<option value="">Select...</option>';
+        ids.forEach((id, i) => {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = names[i];
+            sel.appendChild(opt);
+        });
+    });
+}
+</script>
+{% endblock %}

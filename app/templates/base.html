@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Football Data Intelligence System — Transform football data into interactive insights">
+    <title>{% block title %}FDIS{% endblock %} — Football Data Intelligence System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">⚽</div>
+                <div>
+                    <h1>FDIS</h1>
+                    <div class="brand-sub">Football Intelligence</div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Overview</div>
+                    <a href="{{ url_for('main.index') }}" class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}">
+                        <span class="nav-icon">📊</span> Dashboard
+                    </a>
+                    <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                        <span class="nav-icon">📈</span> Analytics
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Data</div>
+                    <a href="{{ url_for('main.upload') }}" class="nav-link {% if request.endpoint == 'main.upload' %}active{% endif %}">
+                        <span class="nav-icon">📁</span> Upload Data
+                    </a>
+                    <a href="{{ url_for('main.matches') }}" class="nav-link {% if request.endpoint in ['main.matches', 'main.match_detail'] %}active{% endif %}">
+                        <span class="nav-icon">🏟️</span> Matches
+                    </a>
+                    <a href="{{ url_for('main.teams') }}" class="nav-link {% if request.endpoint in ['main.teams', 'main.team_detail'] %}active{% endif %}">
+                        <span class="nav-icon">👥</span> Teams
+                    </a>
+                    <a href="{{ url_for('main.players') }}" class="nav-link {% if request.endpoint in ['main.players', 'main.player_detail'] %}active{% endif %}">
+                        <span class="nav-icon">⭐</span> Players
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Tools</div>
+                    <a href="{{ url_for('main.compare') }}" class="nav-link {% if request.endpoint == 'main.compare' %}active{% endif %}">
+                        <span class="nav-icon">⚖️</span> Compare
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+                    <span class="header-title">{% block header_title %}Dashboard{% endblock %}</span>
+                </div>
+                <div class="header-actions">
+                    <a href="{{ url_for('main.upload') }}" class="btn btn-primary btn-sm">
+                        📁 Upload Data
+                    </a>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="page-content">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

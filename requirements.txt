@@ -1,0 +1,23 @@
+# Flask & Extensions
+Flask==3.1.0
+Flask-SQLAlchemy==3.1.1
+Flask-Cors==5.0.0
+
+# Data Processing
+pandas==2.2.3
+numpy==2.2.4
+openpyxl==3.1.5
+
+# Visualization
+plotly==6.0.1
+kaleido==0.2.1
+
+# API Client
+requests==2.32.3
+
+# Report Generation
+fpdf2==2.8.3
+python-pptx==1.0.2
+
+# Database
+SQLAlchemy==2.0.36

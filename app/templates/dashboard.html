@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Analytics Dashboard{% endblock %}
+{% block header_title %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📈 Analytics Dashboard</h2>
+    <p class="subtitle">Comprehensive league and team performance analytics</p>
+</div>
+
+{% if summary.total_matches == 0 %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <h3>No Data to Analyze</h3>
+        <p>Upload match data to see analytics and visualizations here.</p>
+        <a href="{{ url_for('main.upload') }}" class="btn btn-primary">📁 Upload Data</a>
+    </div>
+</div>
+{% else %}
+
+<!-- Quick Team Selector -->
+<div class="card mb-3">
+    <div class="flex-between">
+        <span class="card-title">Quick Team Analysis</span>
+        <select class="form-select" style="width:250px" onchange="onTeamSelect(this)">
+            <option value="">Select a team...</option>
+            {% for team in teams %}
+            <option value="{{ team.id }}">{{ team.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<!-- Charts Grid -->
+<div class="grid-2 mb-3">
+    {% if charts.goals_distribution %}
+    <div class="card">
+        <div id="chart-goals" class="chart-container"
+             data-chart='{{ charts.goals_distribution | tojson }}'></div>
+    </div>
+    {% endif %}
+
+    {% if charts.win_rate_donut %}
+    <div class="card">
+        <div id="chart-winrate" class="chart-container"
+             data-chart='{{ charts.win_rate_donut | tojson }}'></div>
+    </div>
+    {% endif %}
+</div>
+
+{% if charts.points_bar %}
+<div class="card mb-3">
+    <div id="chart-points" class="chart-container"
+         data-chart='{{ charts.points_bar | tojson }}'></div>
+</div>
+{% endif %}
+
+<!-- Full League Table -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">🏆 Full League Standings</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Team</th>
+                <th>P</th>
+                <th>W</th>
+                <th>D</th>
+                <th>L</th>
+                <th>GF</th>
+                <th>GA</th>
+                <th>GD</th>
+                <th>Pts</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in league_table %}
+            <tr style="cursor:pointer" onclick="location.href='/teams/{{ t.team_id }}'">
+                <td><strong>{{ t.position }}</strong></td>
+                <td><a href="/teams/{{ t.team_id }}">{{ t.team_name }}</a></td>
+                <td>{{ t.played }}</td>
+                <td>{{ t.wins }}</td>
+                <td>{{ t.draws }}</td>
+                <td>{{ t.losses }}</td>
+                <td>{{ t.goals_for }}</td>
+                <td>{{ t.goals_against }}</td>
+                <td>{{ '+' if t.goal_difference >= 0 }}{{ t.goal_difference }}</td>
+                <td><strong>{{ t.points }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
