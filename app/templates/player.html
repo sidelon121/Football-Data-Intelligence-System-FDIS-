@@ -125,6 +125,9 @@
 <div class="card">
     <div class="card-header">
         <span class="card-title">📝 Automated Analysis</span>
+        <div class="flex gap-1">
+            <a href="/api/export/pdf/player/{{ overview.player.id }}" class="btn btn-outline btn-sm">📄 PDF</a>
+        </div>
     </div>
     <div class="analysis-text">
         {% for paragraph in analysis_text.split('\n\n') %}

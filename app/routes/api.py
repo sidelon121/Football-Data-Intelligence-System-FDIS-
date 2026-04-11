@@ -269,7 +269,24 @@ def export_team_pdf(team_id):
     team = Team.query.get(team_id)
     filename = f"FDIS_{team.name.replace(' ', '_')}_Report.pdf" if team else 'report.pdf'
 
-    import tempfile
+    reports_dir = current_app.config['REPORTS_FOLDER']
+    filepath = os.path.join(reports_dir, filename)
+    with open(filepath, 'wb') as f:
+        f.write(pdf_bytes)
+
+    return send_file(filepath, as_attachment=True, download_name=filename)
+
+
+@api_bp.route('/export/pdf/player/<int:player_id>')
+def export_player_pdf(player_id):
+    """Download player report as PDF."""
+    from app.engine.reports import generate_player_report_pdf
+    pdf_bytes = generate_player_report_pdf(player_id)
+    if not pdf_bytes:
+        return jsonify({'error': 'Could not generate report'}), 404
+
+    player = Player.query.get(player_id)
+    filename = f"FDIS_{player.name.replace(' ', '_')}_Report.pdf" if player else 'report.pdf'
     reports_dir = current_app.config['REPORTS_FOLDER']
     filepath = os.path.join(reports_dir, filename)
     with open(filepath, 'wb') as f:
