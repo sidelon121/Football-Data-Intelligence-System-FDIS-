@@ -37,41 +37,24 @@ def upload_file():
     filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
 
-    # Detect file type and process
-    from app.ingestion.csv_handler import detect_file_type, read_file, normalize_columns
-    from app.ingestion.csv_handler import MATCH_COLUMN_MAP, PLAYER_COLUMN_MAP
-    from app.ingestion.csv_handler import process_matches_file, process_players_file
+    # Process the uploaded data file
+    from app.ingestion.csv_handler import process_uploaded_file
 
-    try:
-        df = read_file(filepath)
-        file_type = detect_file_type(df)
+    data_type = request.form.get('data_type', 'auto')
+    result = process_uploaded_file(filepath, filename, data_type=data_type)
 
-        data_type = request.form.get('data_type', 'auto')
-        if data_type != 'auto':
-            file_type = data_type
+    status_code = 200 if result.get('success') else 400
+    response_data = {
+        'success': result.get('success', False),
+        'data_type': result.get('data_type', data_type),
+        'rows_processed': result.get('rows_processed', 0),
+        'rows_failed': result.get('rows_failed', 0),
+        'errors': result.get('errors', [])[:5],
+        'message': result.get('message', '') or (
+            f"Successfully processed {result.get('rows_processed', 0)} rows of {result.get('data_type', 'data')}.")
+    }
 
-        if file_type == 'matches':
-            result = process_matches_file(filepath, filename)
-        elif file_type == 'players':
-            result = process_players_file(filepath, filename)
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'Could not determine data type. Please specify if this contains match or player data.',
-                'detected_columns': list(df.columns),
-            }), 400
-
-        return jsonify({
-            'success': result['success'],
-            'data_type': file_type,
-            'rows_processed': result['rows_processed'],
-            'rows_failed': result.get('rows_failed', 0),
-            'errors': result.get('errors', [])[:5],
-            'message': f"Successfully processed {result['rows_processed']} rows of {file_type} data."
-        })
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+    return jsonify(response_data), status_code
 
 
 @api_bp.route('/manual-entry', methods=['POST'])
@@ -84,6 +67,19 @@ def manual_entry():
         return jsonify({'success': False, 'error': 'No data provided'}), 400
 
     result = process_manual_match(data)
+    return jsonify(result)
+
+
+@api_bp.route('/manual-player', methods=['POST'])
+def manual_player_entry():
+    """Handle manual player stats entry."""
+    from app.ingestion.manual_handler import process_manual_player_stats
+    data = request.get_json() or request.form.to_dict()
+
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    result = process_manual_player_stats(data)
     return jsonify(result)
 
 

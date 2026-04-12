@@ -1,6 +1,6 @@
 """
-FDIS API-Football Integration Handler
-Fetches football data from API-Football (api-sports.io).
+FDIS External Database Handler
+Connects to external databases and imports football data.
 """
 import time
 import requests

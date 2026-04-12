@@ -2,6 +2,7 @@
 FDIS CSV/Excel Data Handler
 Parses uploaded CSV and Excel files into the database.
 """
+import json
 import os
 import pandas as pd
 from datetime import datetime
@@ -108,6 +109,45 @@ def detect_file_type(df):
         return 'players'
     else:
         return 'unknown'
+
+
+def process_uploaded_file(filepath, filename, data_type='auto'):
+    """Detect uploaded file type and process it into the database."""
+    try:
+        df = read_file(filepath)
+    except Exception as e:
+        result = {
+            'success': False,
+            'rows_processed': 0,
+            'rows_failed': 0,
+            'errors': [f'Failed to read file: {str(e)}'],
+            'source_type': 'csv',
+            'data_type': 'unknown',
+        }
+        _log_upload(filename, 'csv', 0, 'failed', result['errors'][0], details=result)
+        return result
+
+    detected_type = detect_file_type(df)
+    if data_type != 'auto':
+        detected_type = data_type
+
+    if detected_type == 'matches':
+        result = process_matches_file(filepath, filename)
+    elif detected_type == 'players':
+        result = process_players_file(filepath, filename)
+    else:
+        result = {
+            'success': False,
+            'rows_processed': 0,
+            'rows_failed': 0,
+            'errors': ['Could not determine data type. Please upload a match or player file or set data_type explicitly.'],
+            'source_type': 'csv',
+            'data_type': 'unknown',
+        }
+        _log_upload(filename, 'csv', 0, 'failed', result['errors'][0], details=result)
+
+    result['data_type'] = detected_type
+    return result
 
 
 def get_or_create_team(name):
@@ -401,7 +441,7 @@ def process_players_file(filepath, filename):
     return result
 
 
-def _log_upload(filename, source_type, row_count, status, error_message=None):
+def _log_upload(filename, source_type, row_count, status, error_message=None, details=None):
     """Log upload to history table."""
     upload = UploadHistory(
         filename=filename,
@@ -409,6 +449,7 @@ def _log_upload(filename, source_type, row_count, status, error_message=None):
         row_count=row_count,
         status=status,
         error_message=error_message,
+        details=json.dumps(details) if details is not None else None,
     )
     db.session.add(upload)
     try:
