@@ -78,5 +78,25 @@
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}{% endblock %}
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const chartContainers = document.querySelectorAll(".chart-container");
+
+        chartContainers.forEach(container => {
+            const chartData = container.getAttribute("data-chart");
+
+            if (chartData) {
+                try {
+                    const parsed = JSON.parse(chartData);
+                    Plotly.newPlot(container, parsed.data, parsed.layout);
+                } catch (e) {
+                    console.error("Chart render error:", e);
+                }
+            }
+        });
+    });
+    </script>
 </body>
 </html>

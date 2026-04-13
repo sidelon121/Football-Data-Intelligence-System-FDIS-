@@ -456,3 +456,23 @@ def _log_upload(filename, source_type, row_count, status, error_message=None, de
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+def load_csv(filepath):
+    """
+    🔥 MAIN ENTRY POINT (WAJIB ADA)
+    Dipanggil dari routes/main.py
+
+    Fungsi ini:
+    - baca file
+    - deteksi tipe
+    - proses ke database
+    """
+
+    filename = os.path.basename(filepath)
+
+    result = process_uploaded_file(filepath, filename)
+
+    if not result['success']:
+        raise Exception(f"Upload failed: {result['errors']}")
+
+    return result

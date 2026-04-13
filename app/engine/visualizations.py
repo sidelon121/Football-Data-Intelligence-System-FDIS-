@@ -40,8 +40,6 @@ CHART_LAYOUT = dict(
         bordercolor='rgba(255,255,255,0.1)',
         borderwidth=1,
     ),
-    xaxis=dict(gridcolor='rgba(255,255,255,0.06)', zerolinecolor='rgba(255,255,255,0.1)'),
-    yaxis=dict(gridcolor='rgba(255,255,255,0.06)', zerolinecolor='rgba(255,255,255,0.1)'),
 )
 
 
@@ -116,12 +114,13 @@ def chart_team_form(team_id):
     ))
 
     fig.update_layout(
-        **CHART_LAYOUT,
-        title=dict(text=f"{trend['team']['name']} — Recent Form", font=dict(size=16)),
-        barmode='relative',
-        xaxis=dict(title='', tickangle=-30),
-        yaxis=dict(title='Goals'),
-    )
+    **CHART_LAYOUT,
+    title=dict(text=f"{trend['team']['name']} — Recent Form", font=dict(size=16)),
+    barmode='relative',
+    xaxis=dict(title='', tickangle=-30),
+)
+
+    fig.update_yaxes(title='Goals')
     return _fig_to_json(fig)
 
 
@@ -149,11 +148,12 @@ def chart_team_trend_lines(team_id):
     ))
 
     fig.update_layout(
-        **CHART_LAYOUT,
-        title=dict(text=f"{trend['team']['name']} — Performance Trends", font=dict(size=16)),
-        xaxis=dict(title='Match Date'),
-        yaxis=dict(title='Value'),
-    )
+    **CHART_LAYOUT,
+    title=dict(text=f"{trend['team']['name']} — Performance Trends", font=dict(size=16)),
+    xaxis=dict(title='Match Date'),
+)
+    fig.update_yaxes(title='Value')
+
     return _fig_to_json(fig)
 
 
@@ -192,15 +192,15 @@ def chart_match_comparison(match_id):
     ))
 
     fig.update_layout(
-        **CHART_LAYOUT,
-        title=dict(
-            text=f"{home_name} {match_info['home_goals']}–{match_info['away_goals']} {away_name}",
-            font=dict(size=16),
-        ),
-        barmode='relative',
-        yaxis=dict(autorange='reversed'),
-        height=450,
-    )
+    **CHART_LAYOUT,
+    title=dict(
+        text=f"{home_name} {match_info['home_goals']}–{match_info['away_goals']} {away_name}",
+        font=dict(size=16),
+    ),
+    barmode='relative',
+    height=450,
+)
+    fig.update_yaxes(autorange='reversed')
     return _fig_to_json(fig)
 
 
@@ -274,10 +274,11 @@ def chart_player_rating_trend(player_id):
                   annotation_text=f'Avg: {avg_rating}')
 
     fig.update_layout(
-        **CHART_LAYOUT,
-        title=dict(text=f"{data['player']['name']} — Rating Trend", font=dict(size=16)),
-        yaxis=dict(title='Rating', range=[4, 10]),
-    )
+    **CHART_LAYOUT,
+    title=dict(text=f"{data['player']['name']} — Rating Trend", font=dict(size=16)),
+)
+    fig.update_yaxes(title='Rating', range=[4, 10])
+
     return _fig_to_json(fig)
 
 
@@ -415,3 +416,42 @@ def chart_win_rate_donut():
         showlegend=True,
     )
     return _fig_to_json(fig)
+
+def chart_match_donut_stats(match_id):
+    """Generate multiple donut charts for match stats."""
+    analysis = get_match_analysis(match_id)
+    if not analysis or 'metrics' not in analysis:
+        return None
+
+    metrics = analysis['metrics']
+    match_info = analysis['match']
+
+    charts = {}
+
+    for key, metric in metrics.items():
+        home = metric['home']
+        away = metric['away']
+        label = metric['label']
+
+        # Hindari error jika 0 semua
+        if home == 0 and away == 0:
+            continue
+
+        fig = go.Figure(data=[go.Pie(
+            labels=[match_info['home_team']['name'], match_info['away_team']['name']],
+            values=[home, away],
+            hole=0.55,
+            textinfo='percent+value',
+            marker=dict(colors=[COLORS['primary'], COLORS['danger']])
+        )])
+
+        fig.update_layout(
+            **CHART_LAYOUT,
+            title=dict(text=label, font=dict(size=14)),
+            showlegend=True,
+            height=300
+        )
+
+        charts[key] = fig.to_dict()
+
+    return charts

@@ -61,10 +61,20 @@
 {% endif %}
 
 <!-- Chart -->
-{% if chart %}
+{% if charts %}
 <div class="card mb-3">
-    <div id="chart-match" class="chart-container"
-         data-chart='{{ chart | tojson }}'></div>
+    <div class="card-header">
+        <span class="card-title">📊 Visual Match Stats</span>
+    </div>
+
+    <div class="grid-3">
+        {% for key, chart in charts.items() %}
+        <div class="chart-box">
+            <div class="chart-container"
+                 data-chart='{{ chart | tojson | safe }}'></div>
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% endif %}
 
