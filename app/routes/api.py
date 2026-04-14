@@ -8,9 +8,90 @@ from flask import Blueprint, request, jsonify, current_app, send_file
 from werkzeug.utils import secure_filename
 from app.models import Team, Player, Match, UploadHistory
 from app import db
+from app.engine.statistics import get_match_analysis, get_player_overview
+from app.engine.nlg import generate_match_summary, generate_player_analysis
+from app.utils.pdf_exporter import clean_text, create_pdf
+import tempfile
 
 api_bp = Blueprint('api', __name__)
 
+
+# ========================
+# MATCH PDF
+# ========================
+def clean_text(text):
+    lines = text.split('\n')
+    unique = []
+    for line in lines:
+        if line.strip() not in unique:
+            unique.append(line.strip())
+    return '\n'.join(unique)
+
+@api_bp.route('/export/pdf/match/<int:match_id>')
+def export_match_pdf(match_id):
+    data = get_match_analysis(match_id)
+    if not data:
+        return "Match not found", 404
+    summary = generate_match_summary(match_id)
+    summary = clean_text(summary)
+    pdf = create_pdf()
+    
+    match = data['match']
+
+    home_name = match['home_team']['name']
+    away_name = match['away_team']['name']
+
+    pdf.section_title(f"{home_name} vs {away_name}")
+    pdf.section_text(f"Score: {match['home_goals']} - {match['away_goals']}")
+    pdf.section_text(f"Date: {match['date']}")
+
+    pdf.section_title("Match Analysis")
+    for paragraph in summary.split('\n\n'):
+        pdf.section_text(paragraph.strip())
+
+    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    pdf.output(temp.name)
+
+    return send_file(temp.name, as_attachment=True)
+
+# ========================
+# PLAYER PDF
+# ========================
+@api_bp.route('/export/pdf/player/<int:player_id>')
+def export_player_pdf(player_id):
+    data = get_player_overview(player_id)
+    if not data:
+        return "Player not found", 404
+
+    analysis = generate_player_analysis(player_id)
+    analysis = clean_text(analysis)
+    pdf = create_pdf()
+    parts = analysis.split("\n\n")  # pisah per paragraf
+    unique_parts = list(dict.fromkeys(parts))  # hapus duplikat
+    analysis = "\n\n".join(unique_parts)
+    player = data['player']
+
+    # ✅ WAJIB clean SEMUA TEXT
+    pdf.section_title(clean_text(player.get('name', 'Unknown')))
+
+    pdf.section_text(f"Position: {clean_text(player.get('position', '-'))}")
+    pdf.section_text(f"Team: {clean_text(player.get('team_name', '-'))}")
+
+    pdf.section_title("Performance Summary")
+    pdf.section_text(f"Matches: {data.get('matches_played', 0)}")
+    pdf.section_text(f"Goals: {data.get('total_goals', 0)}")
+    pdf.section_text(f"Assists: {data.get('total_assists', 0)}")
+    pdf.section_text(f"Rating: {data.get('avg_rating', 0)}")
+
+    pdf.section_title("Analysis")
+
+    # 🔥 INI PALING PENTING (sering jadi sumber error)
+    pdf.section_text(clean_text(analysis))
+
+    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    pdf.output(temp.name)
+
+    return send_file(temp.name, as_attachment=True)
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
@@ -253,59 +334,6 @@ def compare():
 
 
 # ─── Export Endpoints ─────────────────────────────────────────────
-
-@api_bp.route('/export/pdf/team/<int:team_id>')
-def export_team_pdf(team_id):
-    """Download team report as PDF."""
-    from app.engine.reports import generate_team_report_pdf
-    pdf_bytes = generate_team_report_pdf(team_id)
-    if not pdf_bytes:
-        return jsonify({'error': 'Could not generate report'}), 404
-
-    team = Team.query.get(team_id)
-    filename = f"FDIS_{team.name.replace(' ', '_')}_Report.pdf" if team else 'report.pdf'
-
-    reports_dir = current_app.config['REPORTS_FOLDER']
-    filepath = os.path.join(reports_dir, filename)
-    with open(filepath, 'wb') as f:
-        f.write(pdf_bytes)
-
-    return send_file(filepath, as_attachment=True, download_name=filename)
-
-
-@api_bp.route('/export/pdf/player/<int:player_id>')
-def export_player_pdf(player_id):
-    """Download player report as PDF."""
-    from app.engine.reports import generate_player_report_pdf
-    pdf_bytes = generate_player_report_pdf(player_id)
-    if not pdf_bytes:
-        return jsonify({'error': 'Could not generate report'}), 404
-
-    player = Player.query.get(player_id)
-    filename = f"FDIS_{player.name.replace(' ', '_')}_Report.pdf" if player else 'report.pdf'
-    reports_dir = current_app.config['REPORTS_FOLDER']
-    filepath = os.path.join(reports_dir, filename)
-    with open(filepath, 'wb') as f:
-        f.write(pdf_bytes)
-
-    return send_file(filepath, as_attachment=True, download_name=filename)
-
-
-@api_bp.route('/export/pdf/match/<int:match_id>')
-def export_match_pdf(match_id):
-    """Download match report as PDF."""
-    from app.engine.reports import generate_match_report_pdf
-    pdf_bytes = generate_match_report_pdf(match_id)
-    if not pdf_bytes:
-        return jsonify({'error': 'Could not generate report'}), 404
-
-    filename = f'FDIS_Match_{match_id}_Report.pdf'
-    reports_dir = current_app.config['REPORTS_FOLDER']
-    filepath = os.path.join(reports_dir, filename)
-    with open(filepath, 'wb') as f:
-        f.write(pdf_bytes)
-
-    return send_file(filepath, as_attachment=True, download_name=filename)
 
 
 @api_bp.route('/export/pptx/team/<int:team_id>')

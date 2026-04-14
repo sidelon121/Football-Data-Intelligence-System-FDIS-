@@ -6,7 +6,7 @@ import os
 import io
 from datetime import datetime
 from flask import current_app
-from streamlit import pdf
+from flask import pdf
 
 from app.engine.statistics import get_team_overview, get_match_analysis, get_player_overview, get_league_table
 from app.engine.nlg import generate_team_analysis, generate_match_summary, generate_player_analysis
