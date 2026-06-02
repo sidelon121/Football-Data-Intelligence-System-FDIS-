@@ -1,159 +1,669 @@
 {% extends "base.html" %}
+
 {% block title %}{{ overview.player.name }}{% endblock %}
+
 {% block header_title %}Player Analysis{% endblock %}
 
+
+
 {% block content %}
+
 <div class="page-header">
+
     <h2>{{ overview.player.name }}</h2>
+
     <p class="subtitle">
+
         {{ overview.player.position or '' }}
+
         {% if overview.player.team_name %} · {{ overview.player.team_name }}{% endif %}
+
         {% if overview.player.nationality %} · {{ overview.player.nationality }}{% endif %}
+
     </p>
+
 </div>
 
-<!-- Key Stats -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon blue">🏟️</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.matches_played }}</div>
-            <div class="stat-label">Matches</div>
-        </div>
+
+
+<div class="card mb-4" style="background: transparent; border: none; box-shadow: none;">
+
+    
+
+    <div style="display: flex; justify-content: flex-end; margin-bottom: -10px;">
+
+        <a href="/api/export/pdf/player/{{ overview.player.id }}" class="btn btn-outline btn-sm">📄 Download PDF</a>
+
     </div>
-    <div class="stat-card">
-        <div class="stat-icon green">⚽</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.total_goals }}</div>
-            <div class="stat-label">Goals ({{ overview.goals_per_90 }}/90)</div>
-        </div>
+
+
+
+    <div class="custom-tabs">
+
+        <button class="tab-btn active" onclick="switchTab(event, 'tab-main')">📝 Detailed Stats</button>
+
+        <button class="tab-btn" onclick="switchTab(event, 'tab-visuals')">📊 Visuals & Ratings</button>
+
+        <button class="tab-btn" onclick="switchTab(event, 'tab-analysis')">📄 AI Analysis</button>
+
     </div>
-    <div class="stat-card">
-        <div class="stat-icon amber">🎯</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.total_assists }}</div>
-            <div class="stat-label">Assists ({{ overview.assists_per_90 }}/90)</div>
+
+
+
+    <div class="card" style="padding: 0; min-height: 450px;">
+
+        <div class="card-body">
+
+            
+
+            <div id="tab-main" class="tab-pane active" style="padding: 15px;">
+
+                <div class="stats-grid mb-3">
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon blue">🏟️</div>
+
+                        <div class="stat-info">
+
+                            <div class="stat-value">{{ overview.matches_played }}</div>
+
+                            <div class="stat-label">Matches</div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon green">⚽</div>
+
+                        <div class="stat-info">
+
+                            <div class="stat-value">{{ overview.total_goals }}</div>
+
+                            <div class="stat-label">Goals ({{ overview.goals_per_90 }}/90)</div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon amber">🎯</div>
+
+                        <div class="stat-info">
+
+                            <div class="stat-value">{{ overview.total_assists }}</div>
+
+                            <div class="stat-label">Assists ({{ overview.assists_per_90 }}/90)</div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon purple">⭐</div>
+
+                        <div class="stat-info">
+
+                            <div class="stat-value">{{ overview.avg_rating }}</div>
+
+                            <div class="stat-label">Avg Rating</div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="stats-grid mb-4">
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon blue">🎯</div>
+
+                        <div class="stat-info">
+
+                            <div class="stat-value">{{ overview.shot_accuracy }}%</div>
+
+                            <div class="stat-label">Shot Accuracy</div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon green">📊</div>
+
+                        <div class="stat-info">
+
+                            <div class="stat-value">{{ overview.avg_pass_accuracy }}%</div>
+
+                            <div class="stat-label">Pass Accuracy</div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon amber">🏃</div>
+
+                        <div class="stat-info">
+
+                            <div class="stat-value">{{ overview.dribble_success_rate }}%</div>
+
+                            <div class="stat-label">Dribble Success</div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <div class="stat-icon red">🛡️</div>
+
+                        <div class="stat-info">
+
+                            <div class="stat-value">{{ overview.tackles_per_90 }}</div>
+
+                            <div class="stat-label">Tackles/90</div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="detailed-stats-container">
+
+                    
+
+                    <div class="detail-box border-attacking">
+
+                        <h4 class="box-title title-attacking">⚽ Attacking</h4>
+
+                        <div class="data-list">
+
+                            <div class="data-item"><span class="lbl">Total Shots</span><span class="val">{{ overview.total_shots }}</span></div>
+
+                            <div class="data-item"><span class="lbl">On Target</span><span class="val">{{ overview.total_shots_on_target }}</span></div>
+
+                            <div class="data-item"><span class="lbl">Key Passes</span><span class="val">{{ overview.total_key_passes }}</span></div>
+
+                            <div class="data-item"><span class="lbl">Dribbles</span><span class="val">{{ overview.total_dribbles_succeeded }}/{{ overview.total_dribbles_attempted }}</span></div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="detail-box border-passing">
+
+                        <h4 class="box-title title-passing">📊 Passing</h4>
+
+                        <div class="data-list">
+
+                            <div class="data-item"><span class="lbl">Total Passes</span><span class="val">{{ overview.total_passes }}</span></div>
+
+                            <div class="data-item"><span class="lbl">Accuracy</span><span class="val">{{ overview.avg_pass_accuracy }}%</span></div>
+
+                            <div class="data-item"><span class="lbl">Key Passes/90</span><span class="val">{{ overview.key_passes_per_90 }}</span></div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="detail-box border-defensive">
+
+                        <h4 class="box-title title-defensive">🛡️ Defensive</h4>
+
+                        <div class="data-list">
+
+                            <div class="data-item"><span class="lbl">Tackles</span><span class="val">{{ overview.total_tackles }}</span></div>
+
+                            <div class="data-item"><span class="lbl">Interceptions</span><span class="val">{{ overview.total_interceptions }}</span></div>
+
+                            <div class="data-item"><span class="lbl">Tackles/90</span><span class="val">{{ overview.tackles_per_90 }}</span></div>
+
+                            <div class="data-item"><span class="lbl">Interceptions/90</span><span class="val">{{ overview.interceptions_per_90 }}</span></div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div id="tab-visuals" class="tab-pane" style="padding: 15px;">
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; width: 100%;">
+
+                    <div class="detail-box">
+
+                        <h4 class="box-title" style="color: var(--primary-light, #38bdf8);">Radar Profile</h4>
+
+                        
+
+                        {% if charts and charts.radar %}
+
+                            <div id="chart-radar" class="chart-container" data-chart='{{ charts.radar | tojson }}' style="width: 100%; height: 350px;"></div>
+
+                        {% else %}
+
+                            <div style="height: 350px; display: flex; align-items: center; justify-content: center; color: #94a3b8;">
+
+                                ⚠️ Data Radar Chart tidak tersedia.
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+
+
+                    <div class="detail-box">
+
+                        <h4 class="box-title" style="color: var(--primary-light, #38bdf8);">Rating Trend</h4>
+
+                        
+
+                        {% if charts and charts.rating_trend %}
+
+                            <div id="chart-rating-trend" class="chart-container" data-chart='{{ charts.rating_trend | tojson }}' style="width: 100%; height: 350px;"></div>
+
+                        {% else %}
+
+                            <div style="height: 350px; display: flex; align-items: center; justify-content: center; color: #fbbf24;">
+
+                                ⚠️ Data Rating Trend tidak tersedia.
+
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div id="tab-analysis" class="tab-pane" style="padding: 15px;">
+
+                <div class="detail-box">
+
+                    <h4 class="box-title" style="color: #0717f7; font-size: 1.1rem;">🤖 Tactical AI Analysis</h4>
+
+                    <div style="padding: 10px; line-height: 1.8; color: #e2e8f0; font-size: 15px;">
+
+                        {% if analysis_text %}
+
+                            <p style="white-space: pre-line; margin: 0;">{{ analysis_text | safe }}</p>
+
+                        {% else %}
+
+                            <p class="text-center" style="opacity: 0.7; margin: 20px 0;">No tactical summary available.</p>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
+
     </div>
-    <div class="stat-card">
-        <div class="stat-icon purple">⭐</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.avg_rating }}</div>
-            <div class="stat-label">Avg Rating</div>
-        </div>
-    </div>
+
 </div>
 
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon blue">🎯</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.shot_accuracy }}%</div>
-            <div class="stat-label">Shot Accuracy</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon green">📊</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.avg_pass_accuracy }}%</div>
-            <div class="stat-label">Pass Accuracy</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon amber">🏃</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.dribble_success_rate }}%</div>
-            <div class="stat-label">Dribble Success</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon red">🛡️</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.tackles_per_90 }}</div>
-            <div class="stat-label">Tackles/90</div>
-        </div>
-    </div>
-</div>
 
-<!-- Charts -->
-<div class="grid-2 mb-3">
-    {% if charts.radar %}
-    <div class="card">
-        <div id="chart-radar" class="chart-container"
-             data-chart='{{ charts.radar | tojson }}'></div>
-    </div>
-    {% endif %}
 
-    {% if charts.rating_trend %}
-    <div class="card">
-        <div id="chart-rating" class="chart-container"
-             data-chart='{{ charts.rating_trend | tojson }}'></div>
-    </div>
-    {% endif %}
-</div>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 
-<!-- Detailed Stats Card -->
-<div class="card mb-3">
-    <div class="card-header">
-        <span class="card-title">📊 Detailed Statistics</span>
-    </div>
-    <div class="grid-3">
-        <div>
-            <h4 style="color:var(--primary-light); margin-bottom:12px; font-size:0.9rem;">⚽ Attacking</h4>
-            <div style="margin-bottom:8px;"><span class="text-muted">Total Shots:</span> {{ overview.total_shots }}</div>
-            <div style="margin-bottom:8px;"><span class="text-muted">On Target:</span> {{ overview.total_shots_on_target }}</div>
-            <div style="margin-bottom:8px;"><span class="text-muted">Key Passes:</span> {{ overview.total_key_passes }}</div>
-            <div style="margin-bottom:8px;"><span class="text-muted">Dribbles:</span> {{ overview.total_dribbles_succeeded }}/{{ overview.total_dribbles_attempted }}</div>
-        </div>
-        <div>
-            <h4 style="color:var(--accent); margin-bottom:12px; font-size:0.9rem;">📊 Passing</h4>
-            <div style="margin-bottom:8px;"><span class="text-muted">Total Passes:</span> {{ overview.total_passes }}</div>
-            <div style="margin-bottom:8px;"><span class="text-muted">Accuracy:</span> {{ overview.avg_pass_accuracy }}%</div>
-            <div style="margin-bottom:8px;"><span class="text-muted">Key Passes/90:</span> {{ overview.key_passes_per_90 }}</div>
-        </div>
-        <div>
-            <h4 style="color:var(--warning); margin-bottom:12px; font-size:0.9rem;">🛡️ Defensive</h4>
-            <div style="margin-bottom:8px;"><span class="text-muted">Tackles:</span> {{ overview.total_tackles }}</div>
-            <div style="margin-bottom:8px;"><span class="text-muted">Interceptions:</span> {{ overview.total_interceptions }}</div>
-            <div style="margin-bottom:8px;"><span class="text-muted">Tackles/90:</span> {{ overview.tackles_per_90 }}</div>
-            <div style="margin-bottom:8px;"><span class="text-muted">Interceptions/90:</span> {{ overview.interceptions_per_90 }}</div>
-        </div>
-    </div>
-</div>
-
-<!-- Automated Analysis -->
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">📝 Player Analysis</span>
-        <a href="/api/export/pdf/player/{{ overview.player.id }}"
-            class="btn btn-outline btn-sm">
-            📄 Download PDF
-        </a>
-    </div>
-
-    <div class="analysis-text">
-        <p style="white-space: pre-line;">
-            {{ analysis_text }}
-        </p>
-    </div>
-</div>
 <script>
+
 document.addEventListener("DOMContentLoaded", function () {
+
+    renderCharts();
+
+});
+
+
+
+function switchTab(evt, tabId) {
+
+    // Sembunyikan semua tab-pane
+
+    let tabPanes = document.getElementsByClassName("tab-pane");
+
+    for (let i = 0; i < tabPanes.length; i++) { 
+
+        tabPanes[i].classList.remove("active"); 
+
+    }
+
+    
+
+    // Hapus active dari semua tombol
+
+    let tabBtns = document.getElementsByClassName("tab-btn");
+
+    for (let i = 0; i < tabBtns.length; i++) { 
+
+        tabBtns[i].classList.remove("active"); 
+
+    }
+
+    
+
+    // Tampilkan tab yang dipilih & aktifkan tombolnya
+
+    document.getElementById(tabId).classList.add("active");
+
+    evt.currentTarget.classList.add("active");
+
+
+
+    // Jika tab-visuals, trigger resize untuk Plotly dengan delay
+
+    if (tabId === 'tab-visuals') { 
+
+        setTimeout(() => {
+
+            window.dispatchEvent(new Event('resize'));
+
+            renderCharts();
+
+        }, 50);
+
+    }
+
+}
+
+
+
+function renderCharts() {
+
     document.querySelectorAll(".chart-container").forEach(el => {
+
         try {
+
             const chartData = JSON.parse(el.dataset.chart);
 
             if (chartData.data && chartData.layout) {
-                Plotly.newPlot(el, chartData.data, chartData.layout);
-            } else {
-                console.warn("Chart format salah:", chartData);
+
+                chartData.layout.autosize = true;
+
+                Plotly.newPlot(el, chartData.data, chartData.layout, {responsive: true});
+
             }
 
         } catch (err) {
+
             console.error("Chart error:", err);
+
         }
+
     });
-});
+
+}
+
 </script>
+
+
+
+<style>
+
+    /* Tabbed Interface Center Pill Style */
+
+    .custom-tabs { 
+
+        display: flex; 
+
+        justify-content: center; 
+
+        gap: 15px; 
+
+        padding: 20px 0; 
+
+        flex-wrap: wrap;
+
+    }
+
+    
+
+    .tab-btn { 
+
+        background-color: rgba(255, 255, 255, 0.03); 
+
+        border: 1px solid rgba(255, 255, 255, 0.08); 
+
+        padding: 12px 24px; 
+
+        font-size: 14px; 
+
+        font-weight: 600; 
+
+        color: #94a3b8; 
+
+        cursor: pointer; 
+
+        border-radius: 8px; 
+
+        transition: all 0.3s ease; 
+
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
+
+    }
+
+    
+
+    .tab-btn:hover { 
+
+        background-color: rgba(255, 255, 255, 0.08); 
+
+        color: #f8fafc; 
+
+        transform: translateY(-2px); 
+
+    }
+
+    
+
+    .tab-btn.active { 
+
+        background-color: #1e293b; 
+
+        border: 1px solid #4803f5; 
+
+        color: #ffffff; 
+
+        border-bottom: 3px solid #4803f5; 
+
+    }
+
+    
+
+    .tab-pane { 
+
+        display: none; 
+
+        animation: fadeIn 0.4s ease-in-out; 
+
+    }
+
+    
+
+    .tab-pane.active { 
+
+        display: block; 
+
+    }
+
+
+
+    /* Container pembungkus 3 kolom stat detail */
+
+    .detailed-stats-container {
+
+        display: grid;
+
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+
+        gap: 20px;
+
+        margin-top: 10px;
+
+        padding: 5px;
+
+    }
+
+
+
+    /* Style dasar setiap kotak */
+
+    .detail-box {
+
+        background-color: rgba(30, 41, 59, 0.4);
+
+        border: 1px solid rgba(255, 255, 255, 0.05);
+
+        border-radius: 12px;
+
+        padding: 20px;
+
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+
+    }
+
+
+
+    /* Variasi warna border kiri sebagai penanda kategori */
+
+    .border-attacking { border-left: 4px solid var(--primary-light, #38bdf8); }
+
+    .border-passing { border-left: 4px solid var(--accent, #a855f7); }
+
+    .border-defensive { border-left: 4px solid var(--warning, #f59e0b); }
+
+
+
+    /* Judul kategori */
+
+    .box-title {
+
+        margin-top: 0;
+
+        margin-bottom: 16px;
+
+        font-size: 1.05rem;
+
+        font-weight: 700;
+
+        letter-spacing: 0.5px;
+
+    }
+
+    
+
+    .title-attacking { color: var(--primary-light, #38bdf8); }
+
+    .title-passing { color: var(--accent, #a855f7); }
+
+    .title-defensive { color: var(--warning, #f59e0b); }
+
+
+
+    /* Struktur baris list data */
+
+    .data-list {
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 12px;
+
+    }
+
+    
+
+    .data-item {
+
+        display: flex;
+
+        justify-content: space-between;
+
+        align-items: center;
+
+        padding-bottom: 8px;
+
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+
+    }
+
+    
+
+    .data-item:last-child {
+
+        border-bottom: none;
+
+        padding-bottom: 0;
+
+    }
+
+
+
+    /* Label teks kiri & value kanan */
+
+    .data-item .lbl {
+
+        color: #94a3b8;
+
+        font-size: 0.9rem;
+
+    }
+
+    
+
+    .data-item .val {
+
+        color: #f8fafc;
+
+        font-weight: 600;
+
+        font-size: 0.95rem;
+
+    }
+
+
+
+    @keyframes fadeIn {
+
+        from { opacity: 0; transform: translateY(8px); }
+
+        to { opacity: 1; transform: translateY(0); }
+
+    }
+
+</style>
 
 {% endblock %}

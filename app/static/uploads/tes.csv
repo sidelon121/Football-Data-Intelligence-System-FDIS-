@@ -1,0 +1,5 @@
+date,home_team,away_team,home_goals,away_goals,home_penalty_takers,away_penalty_takers,league,season,venue,referee
+2026-06-02,Barcelona,Real Madrid,1,1,"Messi (g), Busquets (x), Pique (g)","Kroos (g), Modric (x), Bellingham (g)",LA LIGA,2025-26,Camp Nou,Fernando Ferrer Gonzalez
+date,home_team,away_team,home_goals,away_goals,has_penalties,home_penalties_scored,away_penalties_scored,home_penalties_attempted,away_penalties_attempted,league,season,venue,referee
+2026-06-02,Barcelona,Real Madrid,2,1,False,0,0,0,0,LA LIGA,2025-26,Camp Nou,Fernando Ferrer Gonzalez
+2026-06-03,Milan,Inter,1,1,True,3,2,5,5,SERIE A,2025-26,San Siro,Pierluigi Collina

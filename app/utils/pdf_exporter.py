@@ -2,6 +2,7 @@ import os
 import re
 import tempfile
 from fpdf import FPDF
+from plotly import data
 
 # 🔥 FIX: Biarkan Plotly (update_layout) yang menentukan ukuran asli, jangan dipaksa!
 def save_chart_as_image(fig):
@@ -150,7 +151,7 @@ class PDF(FPDF):
         self.ln()
 
         self.set_font("Arial", "", 9)
-        for row in data:
+        for row in rows:
             for i, val in enumerate(row):
                 self.cell(col_widths[i], 7, str(val), border=1, align="C")
             self.ln()

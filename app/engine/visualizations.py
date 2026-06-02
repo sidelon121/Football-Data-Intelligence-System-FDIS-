@@ -72,8 +72,8 @@ def chart_team_radar(team_id):
         r=[v * 100 for v in values],
         theta=categories,
         fill='toself',
-        fillcolor=f'rgba(102,126,234,0.25)',
-        line=dict(color=COLORS['primary'], width=2),
+        fillcolor=f'rgba(67,233,123,0.2)',
+        line=dict(color=COLORS['accent'], width=2),
         name=data['team']['name'],
     ))
     fig.update_layout(
@@ -289,7 +289,6 @@ def chart_player_rating_trend(player_id):
     fig.update_yaxes(title='Rating', range=[4, 10])
 
     return _fig_to_json(fig)
-
 
 # ─── Comparison Charts ────────────────────────────────────────────
 
@@ -534,3 +533,42 @@ def chart_match_donut_stats(match_id):
         }
 
     return charts
+
+import plotly.graph_objects as go
+import json
+import plotly.utils
+
+def generate_radar_chart(stats):
+    categories = ['Shot Acc.', 'Pass Acc.', 'Dribble %', 'Tackles/90', 'Key Passes/90', 'Assists/90', 'Goals/90']
+    
+    values = [
+        stats.get("shot_accuracy", 0),
+        stats.get("avg_pass_accuracy", 0),
+        stats.get("dribble_success_rate", 0),
+        stats.get("tackles_per_90", 0) * 10,
+        stats.get("key_passes_per_90", 0) * 10,
+        stats.get("assists_per_90", 0) * 40,
+        stats.get("goals_per_90", 0) * 40
+    ]
+
+    fig = go.Figure(data=go.Scatterpolar(
+        r=values,
+        theta=categories,
+        fill='toself',
+        fillcolor='rgba(74, 222, 128, 0.4)',
+        line=dict(color="#2605f9", width=2)
+    ))
+
+    fig.update_layout(
+        polar=dict(
+            bgcolor='rgba(0,0,0,0)',
+            radialaxis=dict(visible=True, showticklabels=False, gridcolor='rgba(255,255,255,0.1)'),
+            angularaxis=dict(gridcolor='rgba(255,255,255,0.1)')
+        ),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#f8fafc', size=11),
+        margin=dict(l=40, r=40, t=30, b=30)
+    )
+
+    return json.loads(json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder))

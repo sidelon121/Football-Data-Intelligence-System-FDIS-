@@ -4,9 +4,11 @@ Parses uploaded CSV and Excel files into the database.
 """
 import json
 import os
+from unittest import result
 import pandas as pd
 from datetime import datetime
 from app import db
+
 from app.models import Team, Player, Match, MatchStats, PlayerStats, UploadHistory
 
 
@@ -75,6 +77,18 @@ MATCH_COLUMN_MAP = {
     'home_duels_total': 'home_duels_total', 'away_duels_total': 'away_duels_total',
     'home_takles': 'home_takles', 'away_takles': 'away_takles',
     
+        # Extra Time (BARU)
+    'home_goals_et': 'home_goals_et', 'home_goals_extratime': 'home_goals_et',
+    'away_goals_et': 'away_goals_et', 'away_goals_extratime': 'away_goals_et',
+    # Penalty Shootout (BARU)
+    'has_penalties': 'has_penalties', 'went_to_penalties': 'has_penalties',
+    'home_penalties_scored': 'home_penalties_scored', 'home_penalty_goals': 'home_penalties_scored',
+    'away_penalties_scored': 'away_penalties_scored', 'away_penalty_goals': 'away_penalties_scored',
+    'home_penalties_attempted': 'home_penalties_attempted', 'home_penalty_attempts': 'home_penalties_attempted',
+    'away_penalties_attempted': 'away_penalties_attempted', 'away_penalty_attempts': 'away_penalties_attempted',
+    'penalty_details': 'penalty_details', 'penalty_takers': 'penalty_details',
+    'home_penalty_takers': 'home_penalty_takers',
+    'away_penalty_takers': 'away_penalty_takers',
     }
     
 PLAYER_COLUMN_MAP = {
@@ -99,6 +113,93 @@ PLAYER_COLUMN_MAP = {
     'dribbles_attempted': 'dribbles_attempted', 'dribbles_succeeded': 'dribbles_succeeded',
 }
 
+def parse_penalty_takers(penalty_string):
+    """
+    Parse penalty taker string menjadi list of dicts.
+    Format yang diterima:
+    - "Messi (g), Suarez (g), Pique (x), Busquets (g)"
+    - JSON: '[{"player": "Messi", "scored": true}, ...]'
+    
+    Returns: list of {"player": "name", "scored": bool, "team": "home"/"away"}
+    """
+    if not penalty_string or pd.isna(penalty_string):
+        return []
+    
+    penalty_string = str(penalty_string).strip()
+    
+    # Jika format JSON
+    if penalty_string.startswith('['):
+        try:
+            return json.loads(penalty_string)
+        except:
+            pass
+    
+    # Parse format: "Name (g/x), Name (g/x)"
+    penalties = []
+    for item in penalty_string.split(','):
+        item = item.strip()
+        if '(' in item and ')' in item:
+            name = item[:item.rfind('(')].strip()
+            result = item[item.rfind('(')+1:item.rfind(')')].strip().lower()
+            scored = result in ['g', 'goal', 'yes', 'berhasil']
+            penalties.append({
+                'player': name,
+                'scored': scored
+            })
+    
+    return penalties
+
+
+def build_penalty_details(home_penalties, away_penalties):
+    """
+    Combine home dan away penalty lists dengan team info.
+    
+    Args:
+        home_penalties: list of {"player": "name", "scored": bool}
+        away_penalties: list of {"player": "name", "scored": bool}
+    
+    Returns:
+        list of {"player": "name", "scored": bool, "team": "home"/"away"}
+    """
+    details = []
+    
+    for p in (home_penalties or []):
+        details.append({
+            'player': p.get('player', 'Unknown'),
+            'scored': p.get('scored', False),
+            'team': 'home'
+        })
+    
+    for p in (away_penalties or []):
+        details.append({
+            'player': p.get('player', 'Unknown'),
+            'scored': p.get('scored', False),
+            'team': 'away'
+        })
+    
+    return details if details else None
+
+
+def calculate_penalty_stats(penalty_details):
+    """
+    Calculate total penalties scored dan attempted dari penalty_details.
+    
+    Returns: (home_scored, home_attempted, away_scored, away_attempted)
+    """
+    home_scored = away_scored = 0
+    home_attempted = away_attempted = 0
+    
+    for p in (penalty_details or []):
+        if p.get('team') == 'home':
+            home_attempted += 1
+            if p.get('scored'):
+                home_scored += 1
+        elif p.get('team') == 'away':
+            away_attempted += 1
+            if p.get('scored'):
+                away_scored += 1
+    
+    return home_scored, home_attempted, away_scored, away_attempted
 
 def allowed_file(filename, allowed_extensions):
     """Check if file extension is allowed."""
@@ -261,13 +362,16 @@ def parse_date(val):
 
 
 def process_matches_file(filepath, filename):
-    """Process a matches CSV/Excel file and insert into database."""
+    """
+    Process matches CSV/Excel file dengan support penalty shootout.
+    """
     result = {
         'success': True,
         'rows_processed': 0,
         'rows_failed': 0,
         'errors': [],
         'matches_created': 0,
+        'penalty_matches': 0,  # BARU: track penalty matches
     }
 
     try:
@@ -308,29 +412,84 @@ def process_matches_file(filepath, filename):
 
             if existing:
                 match = existing
-            # Update pencetak gol jika data baru tersedia
+                # Update goalscorers
                 if not pd.isna(row.get('home_goalscorers')):
                     match.home_goalscorers = str(row.get('home_goalscorers'))
                 if not pd.isna(row.get('away_goalscorers')):
                     match.away_goalscorers = str(row.get('away_goalscorers'))
             else:
+                # ==========================================
+                # PENALTY DATA PROCESSING (BARU)
+                # ==========================================
+                has_penalties = False
+                penalty_details = None
+                home_penalties_scored = 0
+                away_penalties_scored = 0
+                home_penalties_attempted = 0
+                away_penalties_attempted = 0
+                
+                # Check if match went to penalties
+                penalty_flag = row.get('has_penalties', False)
+                if penalty_flag and str(penalty_flag).lower() in ['true', 'yes', '1', 'y']:
+                    has_penalties = True
+                
+                # Parse penalty takers dari CSV
+                if has_penalties or not pd.isna(row.get('home_penalty_takers')):
+                    home_pens = parse_penalty_takers(row.get('home_penalty_takers'))
+                    away_pens = parse_penalty_takers(row.get('away_penalty_takers'))
+                    
+                    penalty_details = build_penalty_details(home_pens, away_pens)
+                    has_penalties = bool(penalty_details)
+                    
+                    if penalty_details:
+                        h_scored, h_attempted, a_scored, a_attempted = calculate_penalty_stats(penalty_details)
+                        home_penalties_scored = h_scored
+                        home_penalties_attempted = h_attempted
+                        away_penalties_scored = a_scored
+                        away_penalties_attempted = a_attempted
+                
+                # Jika tidak ada penalty takers tapi ada penalty scores
+                elif not pd.isna(row.get('home_penalties_scored')) or not pd.isna(row.get('away_penalties_scored')):
+                    has_penalties = True
+                    home_penalties_scored = safe_int(row.get('home_penalties_scored', 0))
+                    away_penalties_scored = safe_int(row.get('away_penalties_scored', 0))
+                    home_penalties_attempted = safe_int(row.get('home_penalties_attempted', home_penalties_scored + 1))
+                    away_penalties_attempted = safe_int(row.get('away_penalties_attempted', away_penalties_scored + 1))
+                
+                # ==========================================
+                # CREATE MATCH OBJECT
+                # ==========================================
                 match = Match(
                     home_team_id=home_team.id,
                     away_team_id=away_team.id,
                     date=match_date,
                     home_goals=safe_int(row.get('home_goals', 0)),
                     away_goals=safe_int(row.get('away_goals', 0)),
+                    home_goals_et=safe_int(row.get('home_goals_et', 0)),
+                    away_goals_et=safe_int(row.get('away_goals_et', 0)),
                     league=str(row.get('league', '')) if not pd.isna(row.get('league', '')) else None,
                     season=str(row.get('season', '')) if not pd.isna(row.get('season', '')) else None,
                     venue=str(row.get('venue', '')) if not pd.isna(row.get('venue', '')) else None,
                     referee=str(row.get('referee', '')) if not pd.isna(row.get('referee', '')) else None,
-                    # WAJIB ADA: Masukkan ke tabel matches
                     home_goalscorers=str(row.get('home_goalscorers', '')) if not pd.isna(row.get('home_goalscorers')) else None,
                     away_goalscorers=str(row.get('away_goalscorers', '')) if not pd.isna(row.get('away_goalscorers')) else None,
+                    # PENALTY INFO (BARU)
+                    has_penalties=has_penalties,
+                    penalty_details=penalty_details,
+                    home_penalties_scored=home_penalties_scored,
+                    away_penalties_scored=away_penalties_scored,
+                    home_penalties_attempted=home_penalties_attempted,
+                    away_penalties_attempted=away_penalties_attempted,
+                    # Determine status
+                    status='penalties' if has_penalties else ('extra_time' if match.home_goals_et > 0 or match.away_goals_et > 0 else 'completed')
                 )
                 db.session.add(match)
-                db.session.flush() # Ambil ID match untuk proses selanjutnya
+                db.session.flush()
                 result['matches_created'] += 1
+                
+                if has_penalties:
+                    result['penalty_matches'] += 1
+
             validation_errors = validate_match_row(row, idx + 1)
 
             if validation_errors:
@@ -339,6 +498,7 @@ def process_matches_file(filepath, filename):
                     f"Row {idx+1}: " + "; ".join(validation_errors)
                 )
                 continue
+
             # Create match stats for home team
             _create_match_stats(match.id, home_team.id, row, 'home')
             # Create match stats for away team
@@ -348,10 +508,10 @@ def process_matches_file(filepath, filename):
 
         except Exception as e:
             result['rows_failed'] += 1
-            # Tambahkan baris print di bawah ini agar terlihat di terminal
-            print(f"!!! ERROR DATABASE: {str(e)}") 
+            print(f"!!! ERROR DATABASE: {str(e)}")
             result['errors'].append(f'Row {idx + 1}: {str(e)}')
             continue
+
     try:
         db.session.commit()
     except Exception as e:
@@ -364,7 +524,6 @@ def process_matches_file(filepath, filename):
                 '; '.join(result['errors'][:5]) if result['errors'] else None)
 
     return result
-
 
 def _create_match_stats(match_id, team_id, row, side):
     """Create or update MatchStats for a team in a match."""

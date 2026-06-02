@@ -155,16 +155,16 @@ def get_match_analysis(match_id):
         match_id=match_id, team_id=match.away_team_id
     ).first()
 
+    # ==========================================
+    # 🔥 SOLUSI FINAL: INISIALISASI VARIABEL DI SINI
+    # ==========================================
+    metrics_final = {}
+    metrics_circle = []
+
     # Determine dominance metrics
     if home_stats and away_stats:
-        # 1. Inisialisasi list (WAJIB DI ATAS)
-        metrics_bar = []
-        metrics_circle = []
-
-        # ==========================================
-        # 2. STATISTIK BAR (Grafik Garis Biasa)
-        # ==========================================
-        stat_bar = [
+        # 1. Inisialisasi list HANYA untuk metrics_bar
+        metrics_bar = [
             ('xg', 'Expected Goals', ''),
             ('possession', 'Possession', '%'),
             ('total_passes', 'Total Passes', ''),
@@ -184,15 +184,15 @@ def get_match_analysis(match_id):
             ('red_cards', 'Red Cards', ''),
         ]
 
-        for field, label, unit in stat_bar:
-            h_val = getattr(home_stats, field, 0) or 0
-            a_val = getattr(away_stats, field, 0) or 0
-            metrics_bar.append({
-                'label': label,
-                'home': h_val,
-                'away': a_val,
-                'unit': unit
-            })
+        for item in metrics_bar:
+                    metrics_final[item['label']] = {
+                        'home': item['home'],
+                        'away': item['away'],
+                        'label': item['label'],
+                        'unit': item['unit'],
+                        'dominant': 'home' if item['home'] > item['away'] else 'away' if item['away'] > item['home'] else 'none'
+                    }
+            
 
 # ==========================================
 # 3. STATISTIK LINGKARAN (DONUT CHARTS)
@@ -620,57 +620,169 @@ def get_all_league_standings():
             
     return all_standings
 
-def get_team_comparison(team_id_1, team_id_2):
-    stats1 = get_team_overview(team_id_1)
-    stats2 = get_team_overview(team_id_2)
+def get_player_comparison(player1_id, player2_id):
+    """
+    Compare two players comprehensively with full aliasing to prevent Jinja2 UndefinedError.
+    """
+    # 1. Ambil data overview lengkap untuk masing-masing pemain
+    p1_data = get_player_overview(player1_id)
+    p2_data = get_player_overview(player2_id)
 
-    if not stats1 or not stats2:
+    if not p1_data or not p2_data:
         return None
 
-    metrics = [
-        {"label": "Win Rate (%)", "t1": stats1.get('win_rate', 0), "t2": stats2.get('win_rate', 0)},
-        {"label": "Avg Goals", "t1": stats1.get('avg_goals_per_match', 0), "t2": stats2.get('avg_goals_per_match', 0)},
-        {"label": "Possession (%)", "t1": stats1.get('avg_possession', 0), "t2": stats2.get('avg_possession', 0)},
-        {"label": "Pass Acc (%)", "t1": stats1.get('avg_pass_accuracy', 0), "t2": stats2.get('avg_pass_accuracy', 0)},
-        {"label": "Expected Goals", "t1": stats1.get('avg_xg', 0), "t2": stats2.get('avg_xg', 0)},
-        {"label": "Clean Sheets", "t1": stats1.get('clean_sheets', 0), "t2": stats2.get('clean_sheets', 0)},
+    # Siapkan variabel grafik agar kode terlihat rapi
+    p1_rating = p1_data.get('avg_rating', 0)
+    p2_rating = p2_data.get('avg_rating', 0)
+    p1_g90 = round(p1_data.get('goals_per_90', 0) * 10, 1)
+    p2_g90 = round(p2_data.get('goals_per_90', 0) * 10, 1)
+    p1_a90 = round(p1_data.get('assists_per_90', 0) * 10, 1)
+    p2_a90 = round(p2_data.get('assists_per_90', 0) * 10, 1)
+    p1_pass = p1_data.get('avg_pass_accuracy', 0)
+    p2_pass = p2_data.get('avg_pass_accuracy', 0)
+    p1_dribble = p1_data.get('dribble_success_rate', 0)
+    p2_dribble = p2_data.get('dribble_success_rate', 0)
+
+    # 2. Susun mentah data metrik tabel
+    raw_metrics = [
+        ("Matches Played", p1_data.get('matches_played', 0), p2_data.get('matches_played', 0), ""),
+        ("Total Minutes Played", p1_data.get('total_minutes', 0), p2_data.get('total_minutes', 0), " mins"),
+        ("Avg Minutes Per Match", p1_data.get('avg_minutes', 0), p2_data.get('avg_minutes', 0), " mins"),
+        ("Avg Rating", p1_data.get('avg_rating', 0), p2_data.get('avg_rating', 0), ""),
+        ("Total Goals", p1_data.get('total_goals', 0), p2_data.get('total_goals', 0), ""),
+        ("Total Assists", p1_data.get('total_assists', 0), p2_data.get('total_assists', 0), ""),
+        ("Goal Contributions", p1_data.get('goal_contributions', 0), p2_data.get('goal_contributions', 0), ""),
+        ("Goals Per 90", p1_data.get('goals_per_90', 0), p2_data.get('goals_per_90', 0), ""),
+        ("Assists Per 90", p1_data.get('assists_per_90', 0), p2_data.get('assists_per_90', 0), ""),
+        ("Total Shots", p1_data.get('total_shots', 0), p2_data.get('total_shots', 0), ""),
+        ("Total Shots on Target", p1_data.get('total_shots_on_target', 0), p2_data.get('total_shots_on_target', 0), ""),
+        ("Shot Accuracy", p1_data.get('shot_accuracy', 0), p2_data.get('shot_accuracy', 0), "%"),
+        ("Total Passes", p1_data.get('total_passes', 0), p2_data.get('total_passes', 0), ""),
+        ("Avg Pass Accuracy", p1_data.get('avg_pass_accuracy', 0), p2_data.get('avg_pass_accuracy', 0), "%"),
+        ("Total Key Passes", p1_data.get('total_key_passes', 0), p2_data.get('total_key_passes', 0), ""),
+        ("Key Passes Per 90", p1_data.get('key_passes_per_90', 0), p2_data.get('key_passes_per_90', 0), ""),
+        ("Total Tackles", p1_data.get('total_tackles', 0), p2_data.get('total_tackles', 0), ""),
+        ("Tackles Per 90", p1_data.get('tackles_per_90', 0), p2_data.get('tackles_per_90', 0), ""),
+        ("Total Interceptions", p1_data.get('total_interceptions', 0), p2_data.get('total_interceptions', 0), ""),
+        ("Interceptions Per 90", p1_data.get('interceptions_per_90', 0), p2_data.get('interceptions_per_90', 0), ""),
+        ("Total Dribbles Attempted", p1_data.get('total_dribbles_attempted', 0), p2_data.get('total_dribbles_attempted', 0), ""),
+        ("Total Dribbles Succeeded", p1_data.get('total_dribbles_succeeded', 0), p2_data.get('total_dribbles_succeeded', 0), ""),
+        ("Dribble Success Rate", p1_data.get('dribble_success_rate', 0), p2_data.get('dribble_success_rate', 0), "%"),
+        ("Total Yellow Cards", p1_data.get('total_yellow_cards', 0), p2_data.get('total_yellow_cards', 0), ""),
+        ("Total Red Cards", p1_data.get('total_red_cards', 0), p2_data.get('total_red_cards', 0), "")
     ]
 
-    chart_data = {
-        "labels": [m['label'] for m in metrics],
-        "team1": [float(m['t1']) for m in metrics],
-        "team2": [float(m['t2']) for m in metrics]
-    }
+    metrics = []
+    for label, v1, v2, unit in raw_metrics:
+        metrics.append({
+            "label": label,
+            "unit": unit,
+            "dominant": 'team1' if v1 > v2 else 'team2' if v2 > v1 else 'none',
+            # 👇 ALIASING TINGKAT TABEL: Apapun yang dipanggil HTML (t1/p1/team1) akan sukses terisi 👇
+            "t1": v1, "t2": v2,
+            "p1": v1, "p2": v2,
+            "team1": v1, "team2": v2
+        })
 
     return {
+        # 👇 ALIASING TINGKAT ROOT (HEADER PROFIL): Mencegah error objek profil pemain 👇
+        "t1": p1_data['player'],
+        "t2": p2_data['player'],
+        "team1": p1_data['player'],
+        "team2": p2_data['player'],
+        "player1": p1_data['player'],
+        "player2": p2_data['player'],
+        
         "metrics": metrics,
-        "chart_data": chart_data
+        "player1_overview": p1_data,
+        "player2_overview": p2_data,
+        
+        # 👇 ALIASING TINGKAT GRAFIK (CHART.JS): Menyuplai data koordinat radar chart 👇
+        "chart_data": {
+            "labels": ["Rating", "Goals/90 * 10", "Assists/90 * 10", "Pass Acc (%)", "Dribble Success (%)"],
+            "t1": [p1_rating, p1_g90, p1_a90, p1_pass, p1_dribble],
+            "t2": [p2_rating, p2_g90, p2_a90, p2_pass, p2_dribble],
+            "team1": [p1_rating, p1_g90, p1_a90, p1_pass, p1_dribble],
+            "team2": [p2_rating, p2_g90, p2_a90, p2_pass, p2_dribble],
+            "player1": [p1_rating, p1_g90, p1_a90, p1_pass, p1_dribble],
+            "player2": [p2_rating, p2_g90, p2_a90, p2_pass, p2_dribble],
+        }
     }
 
-def get_player_comparison(player_id_1, player_id_2):
-    p1 = get_player_overview(player_id_1)
-    p2 = get_player_overview(player_id_2)
 
-    if not p1 or not p2:
+def get_team_comparison(team1_id, team2_id):
+    """
+    Compare two teams comprehensively with full aliasing for solid consistency.
+    """
+    t1_data = get_team_overview(team1_id)
+    t2_data = get_team_overview(team2_id)
+
+    if not t1_data or not t2_data:
         return None
 
-    metrics = [
-        {"label": "Goals/90", "t1": float(p1.get('goals_per_90', 0)), "t2": float(p2.get('goals_per_90', 0))},
-        {"label": "Assists/90", "t1": float(p1.get('assists_per_90', 0)), "t2": float(p2.get('assists_per_90', 0))},
-        {"label": "Shot Accuracy (%)", "t1": float(p1.get('shot_accuracy', 0)), "t2": float(p2.get('shot_accuracy', 0))},
-        {"label": "Pass Accuracy (%)", "t1": float(p1.get('avg_pass_accuracy', 0)), "t2": float(p2.get('avg_pass_accuracy', 0))},
-        {"label": "Dribble Success (%)", "t1": float(p1.get('dribble_success_rate', 0)), "t2": float(p2.get('dribble_success_rate', 0))}
+    t1_wr = t1_data.get('win_rate', 0)
+    t2_wr = t2_data.get('win_rate', 0)
+    t1_pos = t1_data.get('avg_possession', 0)
+    t2_pos = t2_data.get('avg_possession', 0)
+    t1_pa = t1_data.get('avg_pass_accuracy', 0)
+    t2_pa = t2_data.get('avg_pass_accuracy', 0)
+    t1_cs = t1_data.get('clean_sheet_rate', 0)
+    t2_cs = t2_data.get('clean_sheet_rate', 0)
+    t1_xg = round(t1_data.get('avg_xg', 0) * 10, 1)
+    t2_xg = round(t2_data.get('avg_xg', 0) * 10, 1)
+
+    raw_metrics = [
+        ("Matches Played", t1_data.get('matches_played', 0), t2_data.get('matches_played', 0), ""),
+        ("Wins", t1_data.get('wins', 0), t2_data.get('wins', 0), ""),
+        ("Draws", t1_data.get('draws', 0), t2_data.get('draws', 0), ""),
+        ("Losses", t1_data.get('losses', 0), t2_data.get('losses', 0), ""),
+        ("Points", t1_data.get('points', 0), t2_data.get('points', 0), ""),
+        ("Win Rate", t1_data.get('win_rate', 0), t2_data.get('win_rate', 0), "%"),
+        ("Goals For", t1_data.get('goals_for', 0), t2_data.get('goals_for', 0), ""),
+        ("Goals Against", t1_data.get('goals_against', 0), t2_data.get('goals_against', 0), ""),
+        ("Goal Difference", t1_data.get('goal_difference', 0), t2_data.get('goal_difference', 0), ""),
+        ("Avg Goals Per Match", t1_data.get('avg_goals_per_match', 0), t2_data.get('avg_goals_per_match', 0), ""),
+        ("Avg Goals Conceded", t1_data.get('avg_goals_conceded', 0), t2_data.get('avg_goals_conceded', 0), ""),
+        ("Clean Sheets", t1_data.get('clean_sheets', 0), t2_data.get('clean_sheets', 0), ""),
+        ("Clean Sheet Rate", t1_data.get('clean_sheet_rate', 0), t2_data.get('clean_sheet_rate', 0), "%"),
+        ("Avg Possession", t1_data.get('avg_possession', 0), t2_data.get('avg_possession', 0), "%"),
+        ("Avg Expected Goals (xG)", t1_data.get('avg_xg', 0), t2_data.get('avg_xg', 0), ""),
+        ("Avg Shots", t1_data.get('avg_shots', 0), t2_data.get('avg_shots', 0), ""),
+        ("Avg Shots on Target", t1_data.get('avg_shots_on_target', 0), t2_data.get('avg_shots_on_target', 0), ""),
+        ("Avg Passes", t1_data.get('avg_passes', 0), t2_data.get('avg_passes', 0), ""),
+        ("Avg Pass Accuracy", t1_data.get('avg_pass_accuracy', 0), t2_data.get('avg_pass_accuracy', 0), "%"),
+        ("Avg Corners", t1_data.get('avg_corners', 0), t2_data.get('avg_corners', 0), ""),
+        ("Avg Tackles", t1_data.get('avg_tackles_total', 0), t2_data.get('avg_tackles_total', 0), ""),
+        ("Avg Interceptions", t1_data.get('avg_interceptions', 0), t2_data.get('avg_interceptions', 0), ""),
+        ("Total Yellow Cards", t1_data.get('total_yellow_cards', 0), t2_data.get('total_yellow_cards', 0), ""),
+        ("Total Red Cards", t1_data.get('total_red_cards', 0), t2_data.get('total_red_cards', 0), "")
     ]
 
-    chart_data = {
-        "labels": [m['label'] for m in metrics],
-        "player1": [m['t1'] for m in metrics],
-        "player2": [m['t2'] for m in metrics]
-    }
+    metrics = []
+    for label, v1, v2, unit in raw_metrics:
+        metrics.append({
+            "label": label,
+            "unit": unit,
+            "dominant": 'team1' if v1 > v2 else 'team2' if v2 > v1 else 'none',
+            "t1": v1, "t2": v2,
+            "team1": v1, "team2": v2
+        })
 
     return {
+        "t1": t1_data['team'],
+        "t2": t2_data['team'],
+        "team1": t1_data['team'],
+        "team2": t2_data['team'],
         "metrics": metrics,
-        "chart_data": chart_data
+        "team1_overview": t1_data,
+        "team2_overview": t2_data,
+        "chart_data": {
+            "labels": ["Win Rate (%)", "Possession (%)", "Pass Accuracy (%)", "Clean Sheet (%)", "Avg xG * 10"],
+            "t1": [t1_wr, t1_pos, t1_pa, t1_cs, t1_xg],
+            "t2": [t2_wr, t2_pos, t2_pa, t2_cs, t2_xg],
+            "team1": [t1_wr, t1_pos, t1_pa, t1_cs, t1_xg],
+            "team2": [t2_wr, t2_pos, t2_pa, t2_cs, t2_xg]
+        }
     }
 
 def get_dashboard_summary():

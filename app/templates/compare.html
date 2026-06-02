@@ -17,8 +17,8 @@
         <div class="form-group">
             <label class="form-label">Compare Type</label>
             <select id="compare-type" class="form-select" onchange="updateCompareOptions()">
-                <option value="team" {% if request.args.get('type')=='team' %}selected{% endif %}>Teams</option>
-                <option value="player" {% if request.args.get('type')=='player' %}selected{% endif %}>Players</option>
+                <option value="team" {% if request.args.get('type') == 'team' %}selected{% endif %}>Teams</option>
+                <option value="player" {% if request.args.get('type') == 'player' %}selected{% endif %}>Players</option>
             </select>
         </div>
 
@@ -45,78 +45,118 @@
 </div>
 
 {% if data and data.metrics %}
-<div class="grid-2 mb-4">
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">📊 Visual Comparison</span>
-        </div>
-        <div id="compare-chart" style="min-height:400px;"></div>
+<div class="card mb-4" style="background: transparent; border: none; box-shadow: none;">
+    
+    <div style="display: flex; justify-content: flex-end; margin-bottom: -10px;">
+        <a href="/api/export/pdf/compare?type={{ request.args.get('type') }}&id1={{ request.args.get('id1') }}&id2={{ request.args.get('id2') }}" 
+           class="btn btn-outline btn-sm">📄 Download PDF</a>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">📝 Metrics</span>
-            <a href="/api/export/pdf/compare?type={{ request.args.get('type') }}&id1={{ request.args.get('id1') }}&id2={{ request.args.get('id2') }}" 
-               class="btn btn-outline btn-sm">📄 PDF</a>
-        </div>
-        
-        <div class="comparison-stats">
-            <div class="comp-header">
-                <div>{{ data.meta.name1 }}</div>
-                <div class="text-center">Metric</div>
-                <div class="text-right">{{ data.meta.name2 }}</div>
+    <div class="custom-tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab-table')">
+            📉 Stats Details
+        </button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-chart')">
+            📊 Visual Match Stats
+        </button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-ai')">
+            📄 Match Analysis
+        </button>
+    </div>
+
+    <div class="card" style="padding: 0; min-height: 450px;">
+        <div class="card-body">
+            
+            <div id="tab-table" class="tab-pane active">
+                <div class="comparison-stats">
+                    <div class="comp-header">
+                        <div style="font-weight: bold; color: #f7f7f7;">
+                            {% if data.meta and data.meta.name1 %}{{ data.meta.name1 }}{% else %}{{ data.t1.name }}{% endif %}
+                        </div>
+                        <div class="text-center" style="font-weight: bold; color: #e6e8eb;">Metric</div>
+                        <div class="text-right" style="font-weight: bold; color: #f5f7f6;">
+                            {% if data.meta and data.meta.name2 %}{{ data.meta.name2 }}{% else %}{{ data.t2.name }}{% endif %}
+                        </div>
+                    </div>
+
+                    {% for m in data.metrics %}
+                    <div class="comp-row">
+                        <div class="{% if m.dominant == 'team1' or m.dominant == 'player1' %}winner{% endif %}">
+                            {{ m.t1 }} <span class="unit-text">{{ m.unit }}</span>
+                        </div>
+                        <div class="text-center" style="color: #e2e8f0;">{{ m.label }}</div>
+                        <div class="text-right {% if m.dominant == 'team2' or m.dominant == 'player2' %}winner{% endif %}">
+                            {{ m.t2 }} <span class="unit-text">{{ m.unit }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
 
-            {% for m in data.metrics %}
-            <div class="comp-row">
-                <div class="{% if m.t1|float > m.t2|float %}winner{% endif %}">{{ m.t1 }}</div>
-                <div class="text-center">{{ m.label }}</div>
-                <div class="text-right {% if m.t2|float > m.t1|float %}winner{% endif %}">{{ m.t2 }}</div>
+            <div id="tab-chart" class="tab-pane">
+                <div id="compare-chart" style="min-height: 450px; width: 100%; padding: 10px;"></div>
             </div>
-            {% endfor %}
+
+            <div id="tab-ai" class="tab-pane">
+                <div style="padding: 10px 20px; line-height: 1.8; color: #e2e8f0; font-size: 15px;">
+                    {% if ai_text %}
+                        {% for p in ai_text.split("\n\n") %}
+                            <p style="margin-bottom: 16px;">{{ p }}</p>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-center" style="opacity: 0.7; margin-top: 40px;">No tactical summary available for this comparison.</p>
+                    {% endif %}
+                </div>
+            </div>
+
         </div>
-    </div>
-</div>
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">📝 Compare Summary</span>
-    </div>
-    <div style="padding:15px;">
-        {% for p in ai_text.split("\n\n") %}
-            <p>{{ p }}</p>
-        {% endfor %}
     </div>
 </div>
 
 {% elif request.args.get('id1') %}
-    <div class="alert alert-warning">
-        Data tidak ditemukan untuk perbandingan ini.
+    <div class="alert alert-warning" style="margin-top: 20px; padding: 15px; border-radius: 6px; background-color: #7c5e10; color: #fff;">
+        ⚠️ Data tidak ditemukan untuk perbandingan ini. Harap cek kembali data pertandingan tim/pemain terpilih.
     </div>
 {% endif %}
 
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 
 <script>
-// Ambil data dari Flask dengan aman
-const teamsData = {{ teams | map(attribute='id') | list | tojson }};
-const teamsNames = {{ teams | map(attribute='name') | list | tojson }};
-const playersData = {{ players | map(attribute='id') | list | tojson }};
-const playersNames = {{ players | map(attribute='name') | list | tojson }};
+const teams = [
+    {% for team in teams %}
+    { id: "{{ team.id }}", name: "{{ team.name }}" },
+    {% endfor %}
+];
+
+const players = [
+    {% for player in players %}
+    { id: "{{ player.id }}", name: "{{ player.name }}" },
+    {% endfor %}
+];
 
 function updateCompareOptions() {
     const type = document.getElementById('compare-type').value;
     const sel1 = document.getElementById('compare-id1');
     const sel2 = document.getElementById('compare-id2');
+    const items = (type === 'team') ? teams : players;
 
-    const ids = type === 'team' ? teamsData : playersData;
-    const names = type === 'team' ? teamsNames : playersNames;
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeId1 = urlParams.get('id1');
+    const activeId2 = urlParams.get('id2');
+    const activeType = urlParams.get('type');
 
-    [sel1, sel2].forEach(sel => {
+    [sel1, sel2].forEach((sel, index) => {
         sel.innerHTML = '<option value="">Select...</option>';
-        ids.forEach((id, i) => {
+        items.forEach(item => {
             const opt = document.createElement('option');
-            opt.value = id;
-            opt.textContent = names[i];
+            opt.value = item.id;
+            opt.textContent = item.name;
+            
+            if (type === activeType) {
+                if (index === 0 && item.id.toString() === activeId1) opt.selected = true;
+                if (index === 1 && item.id.toString() === activeId2) opt.selected = true;
+            }
             sel.appendChild(opt);
         });
     });
@@ -127,86 +167,128 @@ function goCompare() {
     const id1 = document.getElementById('compare-id1').value;
     const id2 = document.getElementById('compare-id2').value;
 
-    if (!id1 || !id2 || id1 === id2) {
+    if (!id1 || !id2) {
+        alert("Pilih 2 item untuk dibandingkan!");
+        return;
+    }
+    if (id1 === id2) {
         alert("Pilih 2 item yang berbeda!");
         return;
     }
     window.location.href = `/compare?type=${type}&id1=${id1}&id2=${id2}`;
 }
 
-// Jalankan fungsi ini saat halaman pertama kali dibuka agar dropdown terisi otomatis
-document.addEventListener('DOMContentLoaded', updateCompareOptions);
-
-function goCompare() {
-    const type = document.getElementById('compare-type').value;
-    const id1 = document.getElementById('compare-id1').value;
-    const id2 = document.getElementById('compare-id2').value;
-
-    if (!id1 || !id2 || id1 === id2) {
-        alert("Pilih 2 item berbeda!");
-        return;
+function switchTab(evt, tabId) {
+    let tabPanes = document.getElementsByClassName("tab-pane");
+    for (let i = 0; i < tabPanes.length; i++) {
+        tabPanes[i].classList.remove("active");
     }
+    
+    let tabBtns = document.getElementsByClassName("tab-btn");
+    for (let i = 0; i < tabBtns.length; i++) {
+        tabBtns[i].classList.remove("active");
+    }
+    
+    document.getElementById(tabId).classList.add("active");
+    evt.currentTarget.classList.add("active");
 
-    window.location.href = `/compare?type=${type}&id1=${id1}&id2=${id2}`;
+    if (tabId === 'tab-chart') {
+        window.dispatchEvent(new Event('resize'));
+    }
 }
 
 function renderChart() {
-    const raw = {{ data_json | safe }};
-    if (!raw || !raw.chart_data) return;
+    const chartDiv = document.getElementById('compare-chart');
+    if (!chartDiv) return;
 
-    const isTeam = raw.chart_data.team1 !== undefined;
+    {% if data %}
+        const raw = {{ data | tojson | safe }};
+        if (!raw || !raw.chart_data) return;
 
-    const trace1 = {
-        x: raw.chart_data.labels,
-        y: isTeam ? raw.chart_data.team1 : raw.chart_data.player1,
-        name: raw.meta.name1,
-        type: 'bar'
-    };
+        const name1 = raw.meta ? raw.meta.name1 : raw.t1.name;
+        const name2 = raw.meta ? raw.meta.name2 : raw.t2.name;
 
-    const trace2 = {
-        x: raw.chart_data.labels,
-        y: isTeam ? raw.chart_data.team2 : raw.chart_data.player2,
-        name: raw.meta.name2,
-        type: 'bar'
-    };
+        const trace1 = {
+            x: raw.chart_data.labels,
+            y: raw.chart_data.t1,
+            name: name1,
+            type: 'bar',
+            marker: { color: '#4807fd' }
+        };
 
-    Plotly.newPlot('compare-chart', [trace1, trace2], {
-        barmode: 'group'
-    });
+        const trace2 = {
+            x: raw.chart_data.labels,
+            y: raw.chart_data.t2,
+            name: name2,
+            type: 'bar',
+            marker: { color: '#9b59b6' }
+        };
+
+        const layout = {
+            barmode: 'group',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: '#a0aabf' },
+            margin: { t: 30, b: 40, l: 40, r: 20 },
+            legend: { orientation: 'h', y: -0.2 }
+        };
+
+        Plotly.newPlot('compare-chart', [trace1, trace2], layout);
+    {% endif %}
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     updateCompareOptions();
     renderChart();
 });
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".chart-container").forEach(el => {
-        try {
-            const chartData = JSON.parse(el.dataset.chart);
-
-            if (chartData.data && chartData.layout) {
-                Plotly.newPlot(el, chartData.data, chartData.layout);
-            } else {
-                console.warn("Chart format salah:", chartData);
-            }
-
-        } catch (err) {
-            console.error("Chart error:", err);
-        }
-    });
-});
-
 </script>
+
 
 <style>
     .winner { color: #4ade80; font-weight: bold; }
     .text-center { text-align: center; }
     .text-right { text-align: right; }
-    .comp-header, .comp-row {
+    .unit-text { font-size: 0.85em; opacity: 0.6; font-weight: normal; margin-left: 2px; }
+    
+    .comparison-stats {
+        background-color: transparent;
+        border-radius: 8px;
+        padding: 10px;
+    }
+
+    .comp-header {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        padding: 10px 0;
-        border-bottom: 1px solid #333;
+        padding: 12px 0;
+        border-bottom: 2px solid #334155;
+        margin-bottom: 10px;
+    }
+
+    .comp-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        padding: 14px 5px;
+        border-bottom: 1px solid #1e293b;
+        transition: background-color 0.2s ease;
+    }
+
+    .comp-row:hover {
+        background-color: rgba(255, 255, 255, 0.03);
+        border-radius: 6px;
+    }
+
+    /* Tabbed Interface Center Pill Style */
+    .custom-tabs { display: flex; justify-content: center; gap: 15px; padding: 20px 0; }
+    .tab-btn { background-color: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); padding: 12px 24px; font-size: 14px; font-weight: 600; color: #94a3b8; cursor: pointer; border-radius: 8px; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+    .tab-btn:hover { background-color: rgba(255, 255, 255, 0.08); color: #f8fafc; transform: translateY(-2px); }
+    .tab-btn.active { background-color: #1e293b; border: 1px solid #4803f5; color: #ffffff; border-bottom: 3px solid #4803f5; }
+    .tab-pane { display: none; animation: fadeIn 0.4s ease-in-out; }
+    .tab-pane.active { display: block; }
+
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 {% endblock %}

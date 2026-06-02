@@ -1,150 +1,241 @@
 {% extends "base.html" %}
+
 {% block title %}{{ overview.team.name }}{% endblock %}
+
 {% block header_title %}Team Analysis{% endblock %}
 
 {% block content %}
+
 <div class="page-header">
     <h2>{{ overview.team.name }}</h2>
     <p class="subtitle">{{ overview.team.league or '' }} {{ '| ' + overview.team.country if overview.team.country else '' }}</p>
 </div>
 
-<!-- Key Stats Cards -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon blue">🏟️</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.matches_played }}</div>
-            <div class="stat-label">Matches</div>
+<div class="card mb-4" style="background: transparent; border: none; box-shadow: none;">
+    
+    <div style="display: flex; justify-content: flex-end; margin-bottom: -10px;">
+        <a href="/api/export/pdf/team/{{ overview.team.id }}" class="btn btn-outline btn-sm">📄 Download PDF</a>
+    </div>
+
+    <div class="custom-tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab-overview')">📉 Overview Stats</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-visuals')">📊 Visuals & Form</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-analysis')">📝 AI Analysis</button>
+    </div>
+
+    <div class="card" style="padding: 0; min-height: 450px;">
+        <div class="card-body">
+            
+            <div id="tab-overview" class="tab-pane active" style="padding: 15px;">
+
+                <div class="stats-grid mb-4">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">🏟️</div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{ overview.matches_played }}</div>
+                            <div class="stat-label">Matches</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">🏆</div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{ overview.wins }}W {{ overview.draws }}D {{ overview.losses }}L</div>
+                            <div class="stat-label">Record</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon amber">📊</div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{ overview.points }}</div>
+                            <div class="stat-label">Points</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">🎯</div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{ overview.win_rate }}%</div>
+                            <div class="stat-label">Win Rate</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid mb-4">
+                    <div class="stat-card">
+                        <div class="stat-icon green">⚽</div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{ overview.goals_for }}</div>
+                            <div class="stat-label">Goals Scored ({{ overview.avg_goals_per_match }}/game)</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon red">🛡️</div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{ overview.goals_against }}</div>
+                            <div class="stat-label">Goals Conceded</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon blue">🎯</div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{ overview.avg_xg }}</div>
+                            <div class="stat-label">Average xG</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">🧤</div>
+                        <div class="stat-info">
+                            <div class="stat-value">{{ overview.clean_sheets }}</div>
+                            <div class="stat-label">Clean Sheets ({{ overview.clean_sheet_rate }}%)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background-color: rgba(255, 255, 255, 0.03); border: 1px solid #1e293b; padding: 15px; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #f8fafc; margin-bottom: 10px;">Recent Form</div>
+                    <div class="flex gap-1">
+                        {% for f in overview.form %}
+                        <span class="form-badge {{ f }}">{{ f }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-3" style="font-size:0.85rem; color:#94a3b8;">
+                        Possession: <span style="color:#4ade80">{{ overview.avg_possession }}%</span> · 
+                        Pass Accuracy: <span style="color:#4ade80">{{ overview.avg_pass_accuracy }}%</span> ·
+                        Avg Shots: <span style="color:#4ade80">{{ overview.avg_shots }}</span> · 
+                        Avg Tackles: <span style="color:#4ade80">{{ overview.avg_tackles_total }}</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="tab-visuals" class="tab-pane">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; width: 100%; padding: 15px;">
+
+                    <div class="detail-box" style="background-color: #162032; padding: 1.5rem; border-radius: 12px; border: 1px solid #1e293b; width: 100%;">
+                        <h4 class="box-title" style="color: var(--primary-light, #38bdf8); font-size: 1.1rem; margin-bottom: 1rem; font-weight: 600;">Performance Profile</h4>
+                        
+                        {% if charts and charts.radar %}
+                            <div id="chart-team-radar" class="chart-container" data-chart='{{ charts.radar | tojson }}' style="width: 100%; height: 350px;"></div>
+                        {% else %}
+                            <div style="height: 350px; display: flex; align-items: center; justify-content: center; color: #94a3b8; background-color: rgba(0,0,0,0.2); border-radius: 8px;">
+                                ⚠️ Data Performance Profile tidak tersedia.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="detail-box" style="background-color: #162032; padding: 1.5rem; border-radius: 12px; border: 1px solid #1e293b; width: 100%;">
+                        <h4 class="box-title" style="color: var(--primary-light, #38bdf8); font-size: 1.1rem; margin-bottom: 1rem; font-weight: 600;">Performance Trends</h4>
+                        
+                        {% if charts and charts.trends %}
+                            <div id="chart-team-trend" class="chart-container" data-chart='{{ charts.trends | tojson }}' style="width: 100%; height: 350px;"></div>
+                        {% else %}
+                            <div style="height: 350px; display: flex; align-items: center; justify-content: center; color: #fbbf24; background-color: rgba(0,0,0,0.2); border-radius: 8px;">
+                                ⚠️ Data Performance Trends tidak tersedia.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="tab-analysis" class="tab-pane" style="padding: 15px;">
+                    <h4 class="box-title" style="color: #021ff9; font-size: 1.1rem;">🤖 Tactical AI Analysis</h4>
+                    <div style="padding: 10px; line-height: 1.8; color: #e2e8f0; font-size: 15px;">
+                        {% if analysis_text %}
+                            <p style="white-space: pre-line; margin: 0;">{{ analysis_text | safe }}</p>
+                        {% else %}
+                            <p class="text-center" style="opacity: 0.7; margin: 20px 0;">No tactical summary available.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-icon green">🏆</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.wins }}W {{ overview.draws }}D {{ overview.losses }}L</div>
-            <div class="stat-label">Record</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon amber">📊</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.points }}</div>
-            <div class="stat-label">Points</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon purple">🎯</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.win_rate }}%</div>
-            <div class="stat-label">Win Rate</div>
-        </div>
-    </div>
+
 </div>
 
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon green">⚽</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.goals_for }}</div>
-            <div class="stat-label">Goals Scored ({{ overview.avg_goals_per_match }}/game)</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon red">🛡️</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.goals_against }}</div>
-            <div class="stat-label">Goals Conceded</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon blue">🎯</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.avg_xg }}</div>
-            <div class="stat-label">Average xG</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon green">🧤</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ overview.clean_sheets }}</div>
-            <div class="stat-label">Clean Sheets ({{ overview.clean_sheet_rate }}%)</div>
-        </div>
-    </div>
-</div>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 
-<!-- Form -->
-<div class="card mb-3">
-    <div class="card-header">
-        <span class="card-title">📊 Recent Form</span>
-    </div>
-    <div class="flex gap-1">
-        {% for f in overview.form %}
-        <span class="form-badge {{ f }}">{{ f }}</span>
-        {% endfor %}
-    </div>
-    <div class="mt-2" style="font-size:0.85rem; color:var(--text-secondary);">
-        Possession: {{ overview.avg_possession }}% · Pass Accuracy: {{ overview.avg_pass_accuracy }}% ·
-        Avg Shots: {{ overview.avg_shots }} · Avg Tackles: {{ overview.avg_tackles_total }}
-    </div>
-</div>
-
-<!-- Charts -->
-<div class="grid-2 mb-3">
-    {% if charts.radar %}
-    <div class="card">
-        <div id="chart-radar" class="chart-container"
-             data-chart='{{ charts.radar | tojson }}'></div>
-    </div>
-    {% endif %}
-
-    {% if charts.form %}
-    <div class="card">
-        <div id="chart-form" class="chart-container"
-             data-chart='{{ charts.form | tojson }}'></div>
-    </div>
-    {% endif %}
-</div>
-
-{% if charts.trends %}
-<div class="card mb-3">
-    <div id="chart-trends" class="chart-container"
-         data-chart='{{ charts.trends | tojson }}'></div>
-</div>
-{% endif %}
-
-<!-- Automated Analysis -->
-<div class="card">
-    <div class="card-header">
-        <span class="card-title">📝 Team Analysis</span>
-        <a href="/api/export/pdf/team/{{ overview.team.id }}"
-            class="btn btn-outline btn-sm"
-            style="float:right;">
-            📄 Download PDF
-        </a>
-    </div>
-
-    <div class="analysis-text">
-        <p style="white-space: pre-line;">
-            {{ analysis_text }}
-        </p>
-    </div>
-</div>
 <script>
+
 document.addEventListener("DOMContentLoaded", function () {
+    renderCharts();
+});
+
+function switchTab(evt, tabId) {
+    // Sembunyikan semua tab-pane
+    let tabPanes = document.getElementsByClassName("tab-pane");
+    for (let i = 0; i < tabPanes.length; i++) { 
+        tabPanes[i].classList.remove("active"); 
+    }
+    
+    // Hapus active dari semua tombol
+    let tabBtns = document.getElementsByClassName("tab-btn");
+    for (let i = 0; i < tabBtns.length; i++) { 
+        tabBtns[i].classList.remove("active"); 
+    }
+    
+    // Tampilkan tab yang dipilih & aktifkan tombolnya
+    document.getElementById(tabId).classList.add("active");
+    evt.currentTarget.classList.add("active");
+
+    // Jika tab-visuals, trigger resize untuk Plotly
+    if (tabId === 'tab-visuals') { 
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+            renderCharts();
+        }, 50);
+    }
+}
+
+function renderCharts() {
     document.querySelectorAll(".chart-container").forEach(el => {
         try {
             const chartData = JSON.parse(el.dataset.chart);
-
             if (chartData.data && chartData.layout) {
-                Plotly.newPlot(el, chartData.data, chartData.layout);
-            } else {
-                console.warn("Chart format salah:", chartData);
+                chartData.layout.autosize = true;
+                Plotly.newPlot(el, chartData.data, chartData.layout, {responsive: true});
             }
-
         } catch (err) {
             console.error("Chart error:", err);
         }
     });
-});
+}
+
 </script>
+
+<style>
+
+    .custom-tabs { display: flex; justify-content: center; gap: 15px; padding: 20px 0; flex-wrap: wrap; }
+
+    .tab-btn { background-color: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); padding: 12px 24px; font-size: 14px; font-weight: 600; color: #94a3b8; cursor: pointer; border-radius: 8px; transition: all 0.3s ease; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+
+    .tab-btn:hover { background-color: rgba(255, 255, 255, 0.08); color: #f8fafc; transform: translateY(-2px); }
+
+    .tab-btn.active { background-color: #1e293b; border: 1px solid #4803f5; color: #ffffff; border-bottom: 3px solid #4803f5; }
+
+    .tab-pane { display: none; animation: fadeIn 0.4s ease-in-out; }
+
+    .tab-pane.active { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .form-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; }
+
+    .form-badge.W { background-color: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); }
+
+    .form-badge.D { background-color: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); }
+
+    .form-badge.L { background-color: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+    .detail-box {
+        background-color: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+</style>
 
 {% endblock %}

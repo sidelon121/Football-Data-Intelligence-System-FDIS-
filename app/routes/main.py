@@ -101,15 +101,14 @@ def dashboard():
         teams=teams,
         charts=charts
     )
+# =======================================================
+# BUKA FILE: main.py
+# =======================================================
 
 @main_bp.route('/teams/<int:team_id>')
 def team_detail(team_id):
     from app.engine.statistics import get_team_overview
-    from app.engine.visualizations import (
-        chart_team_radar,
-        chart_team_form,
-        chart_team_trend_lines
-    )
+    from app.engine.visualizations import chart_team_radar, chart_team_form, chart_team_trend_lines
     from app.engine.ai_engine import generate_ai_team_analysis
     from app.engine.nlg import generate_team_analysis
 
@@ -118,25 +117,65 @@ def team_detail(team_id):
     if not overview:
         return render_template('404.html'), 404
 
-    # 🔥 CHARTS (INI YANG KURANG)
     charts = {
         'radar': chart_team_radar(team_id),
         'form': chart_team_form(team_id),
         'trends': chart_team_trend_lines(team_id),
     }
 
-    # 🔥 AI
+    # 🔥 LOGIKA AI DENGAN FALLBACK GANDA (PASTI MUNCUL)
     analysis_text = generate_ai_team_analysis(overview)
 
-    # fallback kalau AI gagal
-    if not analysis_text:
-        analysis_text = generate_team_analysis(team_id)
+    if analysis_text:
+        analysis_text = analysis_text.replace(". ", ".\n\n")
+    else:
+        # Jika Gemini gagal, coba gunakan sistem NLG lama Anda
+        fallback_text = generate_team_analysis(team_id)
+        if fallback_text:
+            analysis_text = fallback_text.replace(". ", ".\n\n")
+        else:
+            # Jika semua gagal, paksa HTML menampilkan pesan ini
+            analysis_text = "⚠️ Gemini AI gagal merespons. Kemungkinan data statistik tim ini belum lengkap di database, atau koneksi API terputus."
 
     return render_template(
         'team.html',
         overview=overview,
-        charts=charts,              # ✅ WAJIB ADA
-        analysis_text=analysis_text
+        charts=charts,              
+        analysis_text=analysis_text # Variabel ini pasti terisi sekarang
+    )
+
+
+@main_bp.route('/players/<int:player_id>')
+def player_detail(player_id):
+    from app.engine.statistics import get_player_overview
+    from app.engine.visualizations import chart_player_radar, chart_player_rating_trend
+    from app.engine.ai_engine import generate_ai_player_analysis
+
+    player_data = get_player_overview(player_id)
+    if not player_data:
+        return render_template('404.html'), 404
+
+    charts = {
+        'radar': chart_player_radar(player_id),
+        'rating_trend': chart_player_rating_trend(player_id)
+    }
+
+    # 🔥 LOGIKA AI DENGAN FALLBACK (PASTI MUNCUL)
+    analysis_text = generate_ai_player_analysis(player_data)
+    
+    if analysis_text:
+        analysis_text = analysis_text.replace(". ", ".\n\n")
+    else:
+        # Jika Gemini gagal, paksa HTML menampilkan pesan ini
+        analysis_text = "⚠️ Gemini AI gagal memproses analisis pemain ini. Silakan cek terminal VS Code Anda untuk melihat detail pesan error."
+
+    return render_template(
+        'player.html', 
+        overview=player_data,             
+        data=player_data,                 
+        player=player_data.get('player', player_data), 
+        charts=charts, 
+        analysis_text=analysis_text # Variabel ini pasti terisi sekarang
     )
 # =========================
 # TEAMS
@@ -146,6 +185,10 @@ def teams():
     teams = Team.query.order_by(Team.name).all()
     return render_template('teams.html', teams=teams)
 
+@main_bp.route('/players')
+def players():
+    players = Player.query.order_by(Player.name).all()
+    return render_template('players.html', players=players)
 
 # =========================
 # MATCHES
@@ -202,42 +245,8 @@ def match_detail(match_id):
 # =========================
 # PLAYERS
 # =========================
-@main_bp.route('/players')
-def players():
-    players = Player.query.order_by(Player.name).all()
-    return render_template('players.html', players=players)
 
 
-@main_bp.route('/players/<int:player_id>')
-def player_detail(player_id):
-    from app.engine.statistics import get_player_overview
-    from app.engine.visualizations import chart_player_radar
-    from app.engine.ai_engine import generate_ai_player_analysis
-    from app.engine.nlg import generate_player_analysis
-
-    overview = get_player_overview(player_id)
-
-    if not overview:
-        return render_template('404.html'), 404
-
-    # 📊 CHART
-    charts = {
-        'radar': chart_player_radar(player_id)
-    }
-
-    analysis_text = generate_ai_player_analysis(overview)
-
-    if not analysis_text:
-        analysis_text = generate_player_analysis(player_id)
-    # 🔥 BIAR RAPI DI WEB
-    analysis_text = analysis_text.replace(". ", ".\n\n")
-
-    return render_template(
-        'player.html',
-        overview=overview,
-        charts=charts,
-        analysis_text=analysis_text
-    )   
 # =========================
 # COMPARE
 # =========================

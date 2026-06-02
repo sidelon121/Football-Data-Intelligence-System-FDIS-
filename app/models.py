@@ -114,62 +114,125 @@ class Player(db.Model):
 
 
 class Match(db.Model):
-    """Football match model."""
+    """Football match model dengan penalty shootout support."""
     __tablename__ = 'matches'
 
     id = db.Column(db.Integer, primary_key=True)
     home_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
     away_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
+    
+    # ❌ HASIL REGULAR TIME
     home_goals = db.Column(db.Integer, default=0)
     away_goals = db.Column(db.Integer, default=0)
+    home_goalscorers = db.Column(db.String(255), nullable=True)
+    away_goalscorers = db.Column(db.String(255), nullable=True)
+    
+    # ❌ EXTRA TIME (JIKA ADA)
+    home_goals_et = db.Column(db.Integer, default=0)
+    away_goals_et = db.Column(db.Integer, default=0)
+    
+    # ❌ PENALTY SHOOTOUT (JIKA ADA)
+    has_penalties = db.Column(db.Boolean, default=False)
+    home_penalties_scored = db.Column(db.Integer, default=0)  # Gol penalti
+    away_penalties_scored = db.Column(db.Integer, default=0)
+    home_penalties_attempted = db.Column(db.Integer, default=0)  # Total tendangan
+    away_penalties_attempted = db.Column(db.Integer, default=0)
+    penalty_details = db.Column(db.JSON, nullable=True)  # Detail setiap penalti: [{"player": "name", "scored": true}, ...]
+    
+    # METADATA
     date = db.Column(db.Date, nullable=False)
     league = db.Column(db.String(100), nullable=True)
     season = db.Column(db.String(20), nullable=True)
     venue = db.Column(db.String(150), nullable=True)
     referee = db.Column(db.String(100), nullable=True)
-    status = db.Column(db.String(20), default='completed')  # completed, scheduled, live
-    api_fixture_id = db.Column(db.Integer, nullable=True)  # API-Football fixture id
+    
+    # STATUS: completed, scheduled, live, extra_time, penalties
+    status = db.Column(db.String(20), default='completed')
+    api_fixture_id = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    home_goalscorers = db.Column(db.String(255),nullable=True)
-    away_goalscorers = db.Column(db.String(255), nullable=True)
 
     # Relationships
     match_stats = db.relationship('MatchStats', backref='match', lazy='dynamic', cascade='all, delete-orphan')
     player_stats = db.relationship('PlayerStats', backref='match', lazy='dynamic', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f'<Match {self.home_team.name if self.home_team else "?"} vs {self.away_team.name if self.away_team else "?"} ({self.date})>'
+        home_name = self.home_team.name if self.home_team else "?"
+        away_name = self.away_team.name if self.away_team else "?"
+        return f'<Match {home_name} vs {away_name} ({self.date})>'
+
+    @property
+    def match_result_text(self):
+        """Return hasil match dengan format: 'home_goals-away_goals' + penalty info jika ada."""
+        result = f"{self.home_goals}-{self.away_goals}"
+        
+        if self.home_goals_et > 0 or self.away_goals_et > 0:
+            result += f" ({self.home_goals + self.home_goals_et}-{self.away_goals + self.away_goals_et} AET)"
+        
+        if self.has_penalties:
+            result += f" ({self.home_penalties_scored}-{self.away_penalties_scored} pen)"
+        
+        return result
+
+    @property
+    def total_home_goals(self):
+        """Total gol home team (regular + extra time)."""
+        return self.home_goals + self.home_goals_et
+
+    @property
+    def total_away_goals(self):
+        """Total gol away team (regular + extra time)."""
+        return self.away_goals + self.away_goals_et
 
     def to_dict(self):
         return {
             'id': self.id,
             'home_team': self.home_team.to_dict() if self.home_team else None,
             'away_team': self.away_team.to_dict() if self.away_team else None,
+            
+            # Regular time
             'home_goals': self.home_goals,
             'away_goals': self.away_goals,
             'home_goalscorers': self.home_goalscorers,
             'away_goalscorers': self.away_goalscorers,
+            
+            # Extra time
+            'home_goals_et': self.home_goals_et,
+            'away_goals_et': self.away_goals_et,
+            'total_home_goals': self.total_home_goals,
+            'total_away_goals': self.total_away_goals,
+            
+            # Penalties
+            'has_penalties': self.has_penalties,
+            'home_penalties_scored': self.home_penalties_scored,
+            'away_penalties_scored': self.away_penalties_scored,
+            'home_penalties_attempted': self.home_penalties_attempted,
+            'away_penalties_attempted': self.away_penalties_attempted,
+            'penalty_details': self.penalty_details,
+            
             'date': self.date.isoformat() if self.date else None,
             'league': self.league,
             'season': self.season,
             'venue': self.venue,
             'referee': self.referee,
             'status': self.status,
+            'match_result_text': self.match_result_text,
         }
 
 
+# ==========================================
+# MATCH STATS MODEL (TIDAK PERLU DIUBAH)
+# ==========================================
 class MatchStats(db.Model):
-    """Match statistics for a team in a specific match."""
+    """Match statistics untuk team dalam specific match."""
     __tablename__ = 'match_stats'
 
     id = db.Column(db.Integer, primary_key=True)
     match_id = db.Column(db.Integer, db.ForeignKey('matches.id'), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
+    
     # Core stats
     goals = db.Column(db.Integer, default=0)
-    home_goalscorers = db.Column(db.String(255), nullable=True)
-    away_goalscorers = db.Column(db.String(255), nullable=True)
-    possession = db.Column(db.Float, default=0.0)  # percentage
+    possession = db.Column(db.Float, default=0.0)
     total_shots = db.Column(db.Integer, default=0)
     shots_on_target = db.Column(db.Integer, default=0)
     shots_off_target = db.Column(db.Integer, default=0)
@@ -183,7 +246,7 @@ class MatchStats(db.Model):
 
     # Passing
     total_passes = db.Column(db.Integer, default=0)
-    pass_accuracy = db.Column(db.Float, default=0.0)  # percentage
+    pass_accuracy = db.Column(db.Float, default=0.0)
     key_passes = db.Column(db.Integer, default=0)
     passes_into_final_third = db.Column(db.Integer, default=0)
     passes_final_third_success = db.Column(db.Integer, default=0)
@@ -196,8 +259,6 @@ class MatchStats(db.Model):
     crosses = db.Column(db.Integer, default=0)
     crosses_success = db.Column(db.Integer, default=0)
     hit_woodwork = db.Column(db.Integer, default=0)
-
-
 
     # Defense
     tackles_success = db.Column(db.Integer, default=0)
@@ -216,12 +277,11 @@ class MatchStats(db.Model):
     offsides = db.Column(db.Integer, default=0)
 
     # Advanced
-    xg = db.Column(db.Float, default=0.0)  # Expected goals
+    xg = db.Column(db.Float, default=0.0)
     goalkeeper_saves = db.Column(db.Integer, default=0)
 
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Unique constraint: one stats row per team per match
     __table_args__ = (
         db.UniqueConstraint('match_id', 'team_id', name='uq_match_team_stats'),
     )
@@ -241,31 +301,31 @@ class MatchStats(db.Model):
             'shots_on_target': self.shots_on_target,
             'shots_off_target': self.shots_off_target,
             'blocked_shots': self.blocked_shots,
-            'shots_inside_box': self.shots_inside_box, # Tambahkan ini
-            'shots_outside_box': self.shots_outside_box, # Tambahkan ini
-            'big_chances_scored': self.big_chances_scored, # Tambahkan ini
-            'big_chances_missed': self.big_chances_missed, # Tambahkan ini
-            'dribbles_attempted': self.dribbles_attempted, # Tambahkan ini
-            'dribbles_succeeded': self.dribbles_succeeded, # Tambahkan ini
+            'shots_inside_box': self.shots_inside_box,
+            'shots_outside_box': self.shots_outside_box,
+            'big_chances_scored': self.big_chances_scored,
+            'big_chances_missed': self.big_chances_missed,
+            'dribbles_attempted': self.dribbles_attempted,
+            'dribbles_succeeded': self.dribbles_succeeded,
             'total_passes': self.total_passes,
             'pass_accuracy': self.pass_accuracy,
-            'passes_into_final_third': self.passes_into_final_third, # Tambahkan ini
-            'passes_final_third_success': self.passes_final_third_success, # Tambahkan ini
-            'passes_into_penalty_area': self.passes_into_penalty_area, # Tambahkan ini
-            'through_balls': self.through_balls, # Tambahkan ini
-            'throw_ins': self.throw_ins, # Tambahkan ini
-            'final_third_entries': self.final_third_entries, # Tambahkan ini
-            'long_balls': self.long_balls, # Tambahkan ini
-            'long_balls_success': self.long_balls_success, # Tambahkan ini
-            'crosses': self.crosses, # Tambahkan ini
-            'crosses_success': self.crosses_success, # Tambahkan ini
-            'hit_woodwork': self.hit_woodwork, # Tambahkan ini
+            'passes_into_final_third': self.passes_into_final_third,
+            'passes_final_third_success': self.passes_final_third_success,
+            'passes_into_penalty_area': self.passes_into_penalty_area,
+            'through_balls': self.through_balls,
+            'throw_ins': self.throw_ins,
+            'final_third_entries': self.final_third_entries,
+            'long_balls': self.long_balls,
+            'long_balls_success': self.long_balls_success,
+            'crosses': self.crosses,
+            'crosses_success': self.crosses_success,
+            'hit_woodwork': self.hit_woodwork,
             'key_passes': self.key_passes,
-            'tackles_success': self.tackles,
+            'tackles_success': self.tackles_success,
             'tackles_total': self.tackles_total,
             'duels_won': self.duels_won,
             'duels_total': self.duels_total,
-            'clerences': self.clerences,
+            'clearances': self.clearances,
             'interceptions': self.interceptions,
             'blocks': self.blocks,
             'corners': self.corners,
