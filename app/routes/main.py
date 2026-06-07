@@ -2,7 +2,7 @@
 FDIS Main Page Routes - Home, Upload, Dashboard, Teams, Matches, Players, Campare
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, current_app
 import os
 
 from app.models import Team, Player, Match, UploadHistory
@@ -45,17 +45,21 @@ def upload():
 
         try:
             # 🔥 LOAD CSV → DataFrame
-            df = load_csv(file_path)
-
-
-            # 🔥 simpan history upload
-            history = UploadHistory(filename=file.filename)
-            from app import db
-            db.session.add(history)
-            db.session.commit()
+            # ⚠️ PENTING: Tidak perlu commit di sini! csv_handler sudah commit!
+            result = load_csv(file_path)
+            
+            print(f"✅ Upload Success: {result}")
+            print(f"   - Rows Processed: {result.get('rows_processed')}")
+            print(f"   - Rows Failed: {result.get('rows_failed')}")
+            print(f"   - Data Type: {result.get('data_type')}")
+            print(f"   - Errors: {result.get('errors')}")
 
         except Exception as e:
-            return f"Error processing file: {str(e)}", 500
+            error_msg = str(e)
+            print(f"❌ ERROR: {error_msg}")
+            import traceback
+            traceback.print_exc()
+            return f"Error processing file: {error_msg}", 500
 
         return redirect(url_for('main.dashboard'))
 

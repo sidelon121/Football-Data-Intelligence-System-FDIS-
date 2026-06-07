@@ -8,7 +8,7 @@ import json
 from re import match
 from flask import Blueprint, redirect, request, jsonify, current_app, send_file, render_template, url_for
 from werkzeug.utils import secure_filename
-from app.models import Team, Player, Match, UploadHistory
+from app.models import Team, Player, Match, UploadHistory, PlayerStats, MatchStats
 from app import db
 from app.engine.statistics import get_match_analysis, get_player_overview
 from app.engine.nlg import generate_match_summary, generate_player_analysis
@@ -47,10 +47,9 @@ def get_logo_path(url):
 # ========================
 # MATCH PDF
 # ========================
-
 @api_bp.route('/export/pdf/match/<int:match_id>')
 def export_match_pdf(match_id):
-    """Export match report to PDF dengan support penalty shootout."""
+    """Export match report to PDF dengan support penalty shootout & Auto Page Break."""
     
     data = get_match_analysis(match_id)
     if not data:
@@ -63,6 +62,10 @@ def export_match_pdf(match_id):
 
     home = match['home_team']['name']
     away = match['away_team']['name']
+
+    # LOGIKA STATUS KETAT
+    is_penalty = (match.get('status') == 'penalties') or (str(match.get('has_penalties', '')).strip().lower() in ['true', '1', 'yes', 't', 'y'])
+    is_et = (match.get('status') == 'extra_time') or (match.get('home_goals_et', 0) > 0) or (match.get('away_goals_et', 0) > 0)
 
     # ==========================================
     # 🏆 HEADER
@@ -77,58 +80,151 @@ def export_match_pdf(match_id):
     # ==========================================
     pdf.set_font("Arial", "B", 24)
     pdf.cell(85, 15, home, align="R")
-    pdf.set_text_color(102, 126, 234)  # Blue
     
-    # Score text dengan extra time & penalties (UPDATED)
-    score_text = f"{match['home_goals']} - {match['away_goals']}"
+    pdf.set_text_color(102, 126, 234)  # Warna Biru
+    pdf.cell(20, 15, f"{match.get('home_goals', 0)} - {match.get('away_goals', 0)}", align="C")
     
-    # Add extra time if exists
-    if match.get('home_goals_et', 0) > 0 or match.get('away_goals_et', 0) > 0:
-        total_home = match['home_goals'] + match.get('home_goals_et', 0)
-        total_away = match['away_goals'] + match.get('away_goals_et', 0)
-        score_text += f"\n({total_home} - {total_away} AET)"
-    
-    # Add penalties if exists
-    if match.get('has_penalties'):
-        score_text += f"\n({match['home_penalties_scored']} - {match['away_penalties_scored']} pen)"
-    
-    pdf.cell(20, 15, score_text, align="C")
-    pdf.set_text_color(0, 0, 0)
+    pdf.set_text_color(0, 0, 0) # Kembali ke Hitam
     pdf.cell(85, 15, away, align="L", ln=True)
-    pdf.set_font("Arial", 'I', 10)
+    
+    # STATUS PERTANDINGAN (FT / AET / PEN)
+    pdf.set_font("Arial", "B", 10)
+    pdf.set_text_color(200, 50, 50) 
+    
+    status_text = "FT"
+    if is_penalty:
+        status_text = f"PEN ({match.get('home_penalties_scored', 0)} - {match.get('away_penalties_scored', 0)})"
+    elif is_et:
+        total_home = match.get('home_goals', 0) + match.get('home_goals_et', 0)
+        total_away = match.get('away_goals', 0) + match.get('away_goals_et', 0)
+        status_text = f"AET ({total_home} - {total_away})"
+    
+    pdf.set_x(95)
+    pdf.cell(20, 5, status_text, align="C", ln=True)
     pdf.ln(5)
 
-    # Goalscorers
+    # PENCETAK GOL
     pdf.set_font("Arial", "I", 9)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(85, 5, f"{match['home_goalscorers'] or '-'}", align="R")
+    pdf.cell(85, 5, f"{match.get('home_goalscorers') or '-'}", align="R")
     pdf.cell(20, 5, "", align="C")
-    pdf.cell(85, 5, f"{match['away_goalscorers'] or '-'}", ln=True, align="L")
+    pdf.cell(85, 5, f"{match.get('away_goalscorers') or '-'}", ln=True, align="L")
     pdf.ln(15)
     
     # ==========================================
-    # 📊 STATS BARS
+    # ⚽ PENALTY SHOOTOUT SECTION (Tabel)
     # ==========================================
+    if is_penalty and match.get('penalty_details'):
+        # Cek sisa ruang, jika tidak muat, buat halaman baru
+        if pdf.get_y() > 200:
+            pdf.add_page()
+        else:
+            pdf.ln(10)
+
+        pdf.set_font("Arial", "B", 14)
+        pdf.set_text_color(26, 26, 46)
+        pdf.cell(190, 8, "PENALTY SHOOTOUT", ln=True, align="L")
+        pdf.set_draw_color(180, 180, 180)
+        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
+        pdf.ln(5)
+
+        pdf.set_font("Arial", "", 11)
+        pdf.set_text_color(0, 0, 0)
+        
+        home_pen_score = match.get('home_penalties_scored', 0)
+        away_pen_score = match.get('away_penalties_scored', 0)
+        home_pen_attempts = match.get('home_penalties_attempted', 0)
+        away_pen_attempts = match.get('away_penalties_attempted', 0)
+
+        pdf.cell(95, 6, f"{home}: {home_pen_score}/{home_pen_attempts}", align="L")
+        pdf.cell(95, 6, f"{away}: {away_pen_score}/{away_pen_attempts}", ln=True, align="R")
+        pdf.ln(3)
+
+        pdf.set_font("Arial", "", 9)
+        
+        home_penalties = [p for p in match.get('penalty_details', []) if p.get('team') == 'home']
+        away_penalties = [p for p in match.get('penalty_details', []) if p.get('team') == 'away']
+
+        max_penalties = max(len(home_penalties), len(away_penalties))
+        
+        for i in range(max_penalties):
+            if i < len(home_penalties):
+                p = home_penalties[i]
+                status = "(O)" if p.get('scored') else "(X)"
+                text = f"{status} {p.get('player', 'Unknown')}"
+                pdf.cell(95, 5, text, border=1, align="L")
+            else:
+                pdf.cell(95, 5, "", border=1)
+            
+            if i < len(away_penalties):
+                p = away_penalties[i]
+                status = "(O)" if p.get('scored') else "(X)"
+                text = f"{status} {p.get('player', 'Unknown')}"
+                pdf.cell(95, 5, text, border=1, ln=True, align="L")
+            else:
+                pdf.cell(95, 5, "", border=1, ln=True)
+
+        pdf.ln(8)
+
+        pdf.set_font("Arial", "B", 11)
+        if home_pen_score > away_pen_score:
+            pdf.set_text_color(39, 174, 96)
+            pdf.cell(190, 6, f"{home} WON on penalties", ln=True, align="C")
+        elif away_pen_score > home_pen_score:
+            pdf.set_text_color(39, 174, 96)
+            pdf.cell(190, 6, f"{away} WON on penalties", ln=True, align="C")
+        else:
+            pdf.set_text_color(230, 126, 34)
+            pdf.cell(190, 6, "Penalty shootout ongoing or tied", ln=True, align="C")
+        
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(10)
+
+    # ==========================================
+    # 📊 STATS BARS (FIXED PAGE BREAK LOGIC)
+    # ==========================================
+    # Pastikan ada ruang cukup sebelum menggambar Header
+    if pdf.get_y() > 250:
+        pdf.add_page()
+    else:
+        pdf.ln(5)
+        
     pdf.section_title("Match Statistics")
+    
     for key, m in metrics.items():
         if isinstance(m, dict):
+            # 🔥 CEK RUANG AMAN (250mm) SEBELUM MENGGAMBAR SETIAP BAR
+            if pdf.get_y() > 250: 
+                pdf.add_page()
+                pdf.ln(5) # Beri jarak sedikit dari atas kertas baru
+                
             pdf.stat_vs_bar(m.get('label', key), m.get('home', 0), m.get('away', 0))
 
     # ==========================================
     # VISUAL MATCH STATS (CIRCLE CHARTS)
     # ==========================================
-    pdf.add_page()
+    # 🔥 SOLUSI: Hapus `pdf.add_page()` yang memaksa halaman baru
+    # Ganti dengan logika sisa ruang (Smart Page Break)
+    if pdf.get_y() > 210: 
+        pdf.add_page()
+    else:
+        pdf.ln(10) # Beri jarak secukupnya antara grafik batang terakhir dengan section Visual Stats
+
     pdf.section_title("Visual Match Stats")
 
     circle_metrics = data.get("circle_metrics", [])
-    y = pdf.get_y() + 4
+    
+    # Jarak awal setelah judul section
+    y = pdf.get_y() + 1 
 
     for m in circle_metrics:
-        if y + 68 > 270:
+        # Cek batas bawah disesuaikan dengan tinggi elemen yang baru
+        if y + 50 > 275: # Saya kembalikan ke batas aman 275 mm agar tidak terpotong footer
             pdf.add_page()
-            y = 10
+            y = 15 # Jarak atas di halaman baru
         
-        pdf.set_xy(8, y + 2)
+        # Menggambar Judul Grafik (misal: "Pass Accuracy")
+        pdf.set_xy(8, y)
         pdf.set_font("Arial", "B", 11)
         pdf.cell(190, 6, safe_text(m["label"]), align="C")
 
@@ -145,30 +241,16 @@ def export_match_pdf(match_id):
         )])
 
         fig_home.update_layout(
-            width=300,
-            height=300,
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="top",
-                y=-0.1,
-                xanchor="center",
-                x=0.5,
-                font=dict(size=12, color="black")
-            ),
-            annotations=[dict(
-                text=f"{m['home_values'][0]}/{sum(m['home_values'])}", 
-                x=0.5, y=0.5, 
-                font=dict(size=16, color='black'),
-                showarrow=False
-            )],
-            margin=dict(t=5, b=5, l=5, r=5),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
+            width=300, height=300, showlegend=True,
+            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=12, color="black")),
+            annotations=[dict(text=f"{m['home_values'][0]}/{sum(m['home_values'])}", x=0.5, y=0.5, font=dict(size=16, color='black'), showarrow=False)],
+            margin=dict(t=0, b=0, l=0, r=0), 
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
         )
-
         home_img = save_chart_as_image(fig_home)
-        pdf.image(home_img, x=35, y=y + 10, w=50)
+        
+        # Posisi Y gambar
+        pdf.image(home_img, x=35, y=y + 6, w=45)
 
         # AWAY CHART
         fig_away = go.Figure(data=[go.Pie(
@@ -183,109 +265,21 @@ def export_match_pdf(match_id):
         )])
 
         fig_away.update_layout(
-            width=300,
-            height=300,
-            showlegend=True,
-            legend=dict(
-                orientation="h",
-                yanchor="top",
-                y=-0.1,
-                xanchor="center",
-                x=0.5,
-                font=dict(size=12, color="black")
-            ),
-            annotations=[dict(
-                text=f"{m['away_values'][0]}/{sum(m['away_values'])}", 
-                x=0.5, y=0.5, 
-                font=dict(size=16, color='black'),
-                showarrow=False
-            )],
-            margin=dict(t=5, b=5, l=5, r=5),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)'
+            width=300, height=300, showlegend=True,
+            legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5, font=dict(size=12, color="black")),
+            annotations=[dict(text=f"{m['away_values'][0]}/{sum(m['away_values'])}", x=0.5, y=0.5, font=dict(size=16, color='black'), showarrow=False)],
+            margin=dict(t=0, b=0, l=0, r=0), 
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
         )
-
         away_img = save_chart_as_image(fig_away)
-        pdf.image(away_img, x=130, y=y + 10, w=50)
-
-        y += 55
-
-    pdf.set_y(y + 4)
-
-    # ==========================================
-    # ⚽ PENALTY SHOOTOUT SECTION (NEW)
-    # ==========================================
-    if match.get('has_penalties') and match.get('penalty_details'):
-        if pdf.get_y() > 200:
-            pdf.add_page()
-        else:
-            pdf.ln(10)
-
-        pdf.set_font("Arial", "B", 14)
-        pdf.set_text_color(26, 26, 46)
-        pdf.cell(190, 8, "PENALTY SHOOTOUT", ln=True, align="L")
-        pdf.set_draw_color(180, 180, 180)
-        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
-        pdf.ln(5)
-
-        # Penalty result summary
-        pdf.set_font("Arial", "", 11)
-        pdf.set_text_color(0, 0, 0)
         
-        home_pen_score = match.get('home_penalties_scored', 0)
-        away_pen_score = match.get('away_penalties_scored', 0)
-        home_pen_attempts = match.get('home_penalties_attempted', 0)
-        away_pen_attempts = match.get('away_penalties_attempted', 0)
+        # Posisi Y gambar
+        pdf.image(away_img, x=130, y=y + 6, w=45)
 
-        # Summary line
-        pdf.cell(95, 6, f"{home}: {home_pen_score}/{home_pen_attempts}", align="L")
-        pdf.cell(95, 6, f"{away}: {away_pen_score}/{away_pen_attempts}", ln=True, align="R")
-        pdf.ln(3)
+        # JARAK ANTAR BARIS GRAFIK DONAT
+        y += 45 
 
-        # Penalty takers list
-        pdf.set_font("Arial", "", 9)
-        
-        home_penalties = [p for p in match.get('penalty_details', []) if p.get('team') == 'home']
-        away_penalties = [p for p in match.get('penalty_details', []) if p.get('team') == 'away']
-
-        # Calculate two-column layout
-        max_penalties = max(len(home_penalties), len(away_penalties))
-        
-        for i in range(max_penalties):
-            # Home penalty
-            if i < len(home_penalties):
-                p = home_penalties[i]
-                status = "✓" if p.get('scored') else "✗"
-                text = f"{status} {p.get('player', 'Unknown')}"
-                pdf.cell(95, 5, text, border=1, align="L")
-            else:
-                pdf.cell(95, 5, "", border=1)
-            
-            # Away penalty
-            if i < len(away_penalties):
-                p = away_penalties[i]
-                status = "✓" if p.get('scored') else "✗"
-                text = f"{status} {p.get('player', 'Unknown')}"
-                pdf.cell(95, 5, text, border=1, ln=True, align="L")
-            else:
-                pdf.cell(95, 5, "", border=1, ln=True)
-
-        pdf.ln(8)
-
-        # Penalty winner
-        pdf.set_font("Arial", "B", 11)
-        if home_pen_score > away_pen_score:
-            pdf.set_text_color(39, 174, 96)  # Green
-            pdf.cell(190, 6, f"🏆 {home} WON on penalties", ln=True, align="C")
-        elif away_pen_score > home_pen_score:
-            pdf.set_text_color(39, 174, 96)  # Green
-            pdf.cell(190, 6, f"🏆 {away} WON on penalties", ln=True, align="C")
-        else:
-            pdf.set_text_color(230, 126, 34)  # Orange
-            pdf.cell(190, 6, "⚖️ Penalty shootout ongoing or tied", ln=True, align="C")
-
-        pdf.set_text_color(0, 0, 0)
-        pdf.ln(10)
+    pdf.set_y(y + 5)
 
     # ==========================================
     # 📝 ANALYSIS & INSIGHTS
@@ -293,6 +287,7 @@ def export_match_pdf(match_id):
     summary = generate_ai_match_analysis(data)
     
     if summary:
+        # Cek sisa ruang, jika mepet buat halaman baru
         if pdf.get_y() > 200:
             pdf.add_page()
         else:
@@ -315,7 +310,6 @@ def export_match_pdf(match_id):
 
     filename = f"Match_{home}_vs_{away}.pdf".replace(" ", "_")
     return send_file(temp.name, as_attachment=True, download_name=filename)
-
 
 def safe_text(text):
     """Clean text for PDF."""
@@ -1188,3 +1182,289 @@ def upload_history():
     """Get upload history."""
     history = UploadHistory.query.order_by(UploadHistory.upload_date.desc()).limit(50).all()
     return jsonify([h.to_dict() for h in history])
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FINAL DELETE ENDPOINTS - COPY KE app/routes/api.py
+# DELETE endpoints dengan proper database deletion yang benar-benar hapus
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@api_bp.route('/delete/match/<int:match_id>', methods=['DELETE', 'POST'])
+def delete_match(match_id):
+    """🗑️ Delete a match and ALL related data - PERMANENT DELETION"""
+    try:
+        print(f"\n🗑️ DELETE MATCH: ID {match_id}")
+        
+        match = Match.query.get(match_id)
+        if not match:
+            print(f"❌ Match not found: {match_id}")
+            return jsonify({'success': False, 'error': 'Match not found'}), 404
+        
+        match_info = f"{match.home_team.name if match.home_team else '?'} vs {match.away_team.name if match.away_team else '?'}"
+        print(f"   Match: {match_info}")
+        
+        # Delete PlayerStats related to this match
+        player_stats_count = PlayerStats.query.filter_by(match_id=match_id).count()
+        print(f"   Deleting {player_stats_count} player stats records...")
+        PlayerStats.query.filter_by(match_id=match_id).delete()
+        
+        # Delete MatchStats related to this match
+        match_stats_count = MatchStats.query.filter_by(match_id=match_id).count()
+        print(f"   Deleting {match_stats_count} match stats records...")
+        MatchStats.query.filter_by(match_id=match_id).delete()
+        
+        # Delete the match itself
+        print(f"   Deleting match record...")
+        db.session.delete(match)
+        
+        # Commit ALL deletions
+        db.session.commit()
+        
+        print(f"✅ Match {match_id} PERMANENTLY DELETED")
+        return jsonify({
+            'success': True, 
+            'message': f'Match {match_info} has been permanently deleted'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        error_msg = str(e)
+        print(f"❌ Delete match error: {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@api_bp.route('/delete/player/<int:player_id>', methods=['DELETE', 'POST'])
+def delete_player(player_id):
+    """🗑️ Delete a player and ALL related data - PERMANENT DELETION"""
+    try:
+        print(f"\n🗑️ DELETE PLAYER: ID {player_id}")
+        
+        player = Player.query.get(player_id)
+        if not player:
+            print(f"❌ Player not found: {player_id}")
+            return jsonify({'success': False, 'error': 'Player not found'}), 404
+        
+        player_name = player.name
+        print(f"   Player: {player_name}")
+        
+        # Delete all player stats
+        player_stats_count = PlayerStats.query.filter_by(player_id=player_id).count()
+        print(f"   Deleting {player_stats_count} player stats records...")
+        PlayerStats.query.filter_by(player_id=player_id).delete()
+        
+        # Delete the player
+        print(f"   Deleting player record...")
+        db.session.delete(player)
+        
+        # Commit ALL deletions
+        db.session.commit()
+        
+        print(f"✅ Player {player_id} ({player_name}) PERMANENTLY DELETED")
+        return jsonify({
+            'success': True, 
+            'message': f'Player {player_name} has been permanently deleted'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        error_msg = str(e)
+        print(f"❌ Delete player error: {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+@api_bp.route('/delete/team/<int:team_id>', methods=['DELETE', 'POST'])
+def delete_team(team_id):
+    """🗑️ Delete a team and related data - WITH VALIDATION"""
+    try:
+        print(f"\n🗑️ DELETE TEAM: ID {team_id}")
+        
+        team = Team.query.get(team_id)
+        if not team:
+            print(f"❌ Team not found: {team_id}")
+            return jsonify({'success': False, 'error': 'Team not found'}), 404
+        
+        team_name = team.name
+        print(f"   Team: {team_name}")
+        
+        # Check if team has matches
+        home_matches = Match.query.filter_by(home_team_id=team_id).count()
+        away_matches = Match.query.filter_by(away_team_id=team_id).count()
+        total_matches = home_matches + away_matches
+        
+        if total_matches > 0:
+            error_msg = f'Cannot delete team with {total_matches} match records. Please delete related matches first.'
+            print(f"❌ {error_msg}")
+            return jsonify({
+                'success': False, 
+                'error': error_msg
+            }), 400
+        
+        # Delete all players in this team
+        players = Player.query.filter_by(team_id=team_id).all()
+        for player in players:
+            player_id = player.id
+            print(f"   Deleting player: {player.name}")
+            
+            # Delete player stats
+            PlayerStats.query.filter_by(player_id=player_id).delete()
+            # Delete player
+            db.session.delete(player)
+        
+        # Delete the team
+        print(f"   Deleting team record...")
+        db.session.delete(team)
+        
+        # Commit ALL deletions
+        db.session.commit()
+        
+        print(f"✅ Team {team_id} ({team_name}) PERMANENTLY DELETED")
+        return jsonify({
+            'success': True, 
+            'message': f'Team {team_name} has been permanently deleted'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        error_msg = str(e)
+        print(f"❌ Delete team error: {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COLUMN MAPPING INFO ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@api_bp.route('/info/column-mapping')
+def column_mapping_info():
+    """📋 Provide complete column mapping information"""
+    info = {
+        'match_data': {
+            'required': [
+                {'name': 'date', 'description': 'Match date', 'format': '2024-01-15 or 15/01/2024'},
+                {'name': 'home_team', 'description': 'Home team name', 'format': 'Arsenal'},
+                {'name': 'away_team', 'description': 'Away team name', 'format': 'Chelsea'},
+                {'name': 'home_goals', 'description': 'Goals scored by home team', 'format': '2'},
+                {'name': 'away_goals', 'description': 'Goals scored by away team', 'format': '1'},
+            ],
+            'optional': [
+                {'name': 'league', 'description': 'Competition name', 'format': 'Premier League'},
+                {'name': 'season', 'description': 'Season', 'format': '2023/2024'},
+                {'name': 'venue', 'description': 'Stadium name', 'format': 'Emirates Stadium'},
+                {'name': 'referee', 'description': 'Match referee name', 'format': 'Andre Marriner'},
+                {'name': 'home_goalscorers', 'description': 'Goal scorers comma-separated', 'format': 'Saka, Odegaard'},
+                {'name': 'away_goalscorers', 'description': 'Goal scorers comma-separated', 'format': 'Mount'},
+            ],
+            'stats': [
+                {'name': 'home_possession', 'description': 'Ball possession %'},
+                {'name': 'away_possession', 'description': 'Ball possession %'},
+                {'name': 'home_shots', 'description': 'Total shots'},
+                {'name': 'away_shots', 'description': 'Total shots'},
+                {'name': 'home_passes', 'description': 'Total passes'},
+                {'name': 'away_passes', 'description': 'Total passes'},
+                {'name': 'home_tackles', 'description': 'Tackles made'},
+                {'name': 'away_tackles', 'description': 'Tackles made'},
+                {'name': 'home_xg', 'description': 'Expected Goals'},
+                {'name': 'away_xg', 'description': 'Expected Goals'},
+            ],
+            'penalties': [
+                {'name': 'has_penalties', 'description': 'Whether match had penalty shootout', 'format': 'true/false'},
+                {'name': 'home_penalty_takers', 'description': 'Penalty takers format', 'format': '"Name (g), Name (x)"'},
+                {'name': 'away_penalty_takers', 'description': 'Penalty takers format', 'format': '"Name (g), Name (x)"'},
+                {'name': 'home_penalties_scored', 'description': 'Penalties scored by home'},
+                {'name': 'away_penalties_scored', 'description': 'Penalties scored by away'},
+            ]
+        },
+        'player_data': {
+            'required': [
+                {'name': 'name', 'description': 'Player name', 'format': 'Mohamed Salah'},
+                {'name': 'team', 'description': 'Team name (must match existing team)', 'format': 'Liverpool'},
+            ],
+            'optional': [
+                {'name': 'position', 'description': 'Player position', 'format': 'RW'},
+                {'name': 'nationality', 'description': 'Player nationality', 'format': 'Egypt'},
+                {'name': 'shirt_number', 'description': 'Jersey number', 'format': '11'},
+                {'name': 'match_id', 'description': 'Match ID (if linking to match)', 'format': '1'},
+            ],
+            'stats': [
+                {'name': 'minutes_played', 'description': 'Minutes in match'},
+                {'name': 'rating', 'description': 'Match rating', 'format': '0-10'},
+                {'name': 'goals', 'description': 'Goals scored'},
+                {'name': 'assists', 'description': 'Assists provided'},
+                {'name': 'passes', 'description': 'Passes completed'},
+                {'name': 'pass_accuracy', 'description': 'Pass accuracy %'},
+                {'name': 'shots', 'description': 'Shots attempted'},
+                {'name': 'shots_on_target', 'description': 'Shots on target'},
+                {'name': 'tackles', 'description': 'Tackles made'},
+                {'name': 'interceptions', 'description': 'Interceptions'},
+                {'name': 'blocks', 'description': 'Blocks made'},
+                {'name': 'clearances', 'description': 'Clearances'},
+                {'name': 'fouls_committed', 'description': 'Fouls committed'},
+                {'name': 'fouls_drawn', 'description': 'Fouls drawn'},
+                {'name': 'yellow_cards', 'description': 'Yellow cards'},
+                {'name': 'red_cards', 'description': 'Red cards'},
+                {'name': 'dribbles_attempted', 'description': 'Dribbles attempted'},
+                {'name': 'dribbles_succeeded', 'description': 'Dribbles succeeded'},
+                {'name': 'key_passes', 'description': 'Key passes'},
+                {'name': 'crosses', 'description': 'Crosses attempted'},
+            ]
+        }
+    }
+    return jsonify(info)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOWNLOAD TEMPLATE ENDPOINT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@api_bp.route('/info/download-template/<template_type>')
+def download_template(template_type):
+    """📥 Download CSV template for match or player data"""
+    import csv
+    import tempfile
+    
+    if template_type == 'match':
+        headers = [
+            'date', 'home_team', 'away_team', 'home_goals', 'away_goals',
+            'league', 'season', 'venue', 'referee',
+            'home_possession', 'away_possession',
+            'home_shots', 'away_shots', 'home_passes', 'away_passes'
+        ]
+        sample_rows = [
+            ['2024-01-15', 'Arsenal', 'Chelsea', '2', '1',
+             'Premier League', '2023/2024', 'Emirates Stadium', 'Andre Marriner',
+             '55', '45', '18', '12', '520', '480'],
+            ['2024-01-16', 'Liverpool', 'Manchester City', '1', '1',
+             'Premier League', '2023/2024', 'Anfield', 'Stuart Attwell',
+             '48', '52', '15', '16', '480', '540']
+        ]
+        filename = 'template_match_data.csv'
+        
+    elif template_type == 'player':
+        headers = [
+            'name', 'team', 'position', 'nationality', 'shirt_number',
+            'match_id', 'minutes_played', 'rating',
+            'goals', 'assists', 'passes', 'pass_accuracy', 'shots'
+        ]
+        sample_rows = [
+            ['Mohamed Salah', 'Liverpool', 'RW', 'Egypt', '11',
+             '1', '90', '8.2', '1', '1', '45', '85', '5'],
+            ['Bukayo Saka', 'Arsenal', 'RW', 'England', '7',
+             '1', '85', '7.8', '0', '2', '42', '82', '4']
+        ]
+        filename = 'template_player_data.csv'
+    else:
+        return "Invalid template type", 400
+    
+    # Create CSV file
+    temp = tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='')
+    writer = csv.writer(temp)
+    writer.writerow(headers)
+    for row in sample_rows:
+        writer.writerow(row)
+    temp.close()
+    
+    return send_file(
+        temp.name,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='text/csv'
+    )

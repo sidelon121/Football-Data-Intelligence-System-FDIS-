@@ -4,19 +4,22 @@
 
 {% block content %}
 <div class="page-header">
-    <h2>📁 Data Upload</h2>
-    <p class="subtitle">Import football data from CSV, Excel files, or enter data manually</p>
+    <h2>📁 Data Upload & Management</h2>
+    <p class="subtitle">Import football data from CSV, Excel files, or manage existing data</p>
 </div>
 
-<!-- Tabs -->
-<div class="tabs">
-    <button class="tab active" data-tab="tab-file">File Upload</button>
-    <button class="tab" data-tab="tab-manual">Manual Entry</button>
-    <button class="tab" data-tab="tab-api">API Import</button>
+<!-- TAB BUTTONS -->
+<div class="custom-tabs">
+    <button class="tab tab-btn active" data-tab="tab-file">📤 Upload File</button>
+    <button class="tab tab-btn" data-tab="tab-template">📋 Column Guide</button>
+    <button class="tab tab-btn" data-tab="tab-manage">🗑️ Manage Data</button>
+    <button class="tab tab-btn" data-tab="tab-history">📜 Upload History</button>
 </div>
 
-
-</script><div id="tab-file" class="tab-content active">
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: UPLOAD FILE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-file" class="tab-content active">
     <div class="card mb-3">
         <form action="{{ url_for('api.upload_file') }}" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="source_type" value="file">
@@ -24,12 +27,12 @@
             <div class="card-header">
                 <span class="card-title">Upload CSV or Excel File</span>
                 <div class="flex gap-1">
-                    <select name="data_type" class="form-select" style="width:auto">
-                        <option value="auto">Auto-Detect Type</option>
-                        <option value="matches">Match Data</option>
-                        <option value="players">Player Data</option>
-                    </select>
+                    <span class="badge badge-info">🤖 Auto-Detects Type</span>
                 </div>
+            </div>
+
+            <div class="alert alert-info" style="margin-bottom: 20px;">
+                <strong>💡 Tip:</strong> The system will automatically detect if you're uploading MATCH data or PLAYER data based on the columns in your file.
             </div>
 
             <input type="file" name="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none" onchange="displayFileName(this)">
@@ -42,8 +45,9 @@
             </div>
 
             <div class="mt-2 flex-between">
-                <div>
-                    <a href="/static/uploads/sample_template.csv" class="btn btn-outline btn-sm" download>📥 Download Template</a>
+                <div class="flex gap-1">
+                    <a href="{{ url_for('api.download_template', template_type='match') }}" class="btn btn-outline btn-sm" download>📥 Match Template</a>
+                    <a href="{{ url_for('api.download_template', template_type='player') }}" class="btn btn-outline btn-sm" download>📥 Player Template</a>
                 </div>
                 <button type="submit" id="upload-btn" class="btn btn-primary">
                     🚀 Upload & Process
@@ -53,290 +57,859 @@
     </div>
 </div>
 
-<!-- Manual Entry Tab -->
-<div id="tab-manual" class="tab-content">
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: COLUMN GUIDE (COMPLETE MAPPING) -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-template" class="tab-content">
+    <div class="grid">
+        <!-- MATCH DATA GUIDE -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">⚽ MATCH DATA - Complete Mapping</span>
+            </div>
+            
+            <div class="section-box">
+                <h4 style="color: #f59e0b; margin-bottom: 12px;">🔴 REQUIRED (Must Have)</h4>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; width: 30%; color: #f8fafc; font-weight: bold;">date</td>
+                        <td style="padding: 8px; color: #94a3b8;">Match date (2024-01-15, 15/01/2024)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">home_team</td>
+                        <td style="padding: 8px; color: #94a3b8;">Home team name (Arsenal)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">away_team</td>
+                        <td style="padding: 8px; color: #94a3b8;">Away team name (Chelsea)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">home_goals</td>
+                        <td style="padding: 8px; color: #94a3b8;">Goals by home team (2)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">away_goals</td>
+                        <td style="padding: 8px; color: #94a3b8;">Goals by away team (1)</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="section-box">
+                <h4 style="color: #6366f1; margin-bottom: 12px;">🔵 OPTIONAL Columns</h4>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold; width: 40%;">league</td>
+                        <td style="padding: 8px; color: #94a3b8;">Premier League, La Liga, etc</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">season</td>
+                        <td style="padding: 8px; color: #94a3b8;">2023/2024</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">venue</td>
+                        <td style="padding: 8px; color: #94a3b8;">Stadium name</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">referee</td>
+                        <td style="padding: 8px; color: #94a3b8;">Referee name</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">home_goalscorers</td>
+                        <td style="padding: 8px; color: #94a3b8;">Saka, Odegaard</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">away_goalscorers</td>
+                        <td style="padding: 8px; color: #94a3b8;">Mount, Jorginho</td>
+                    </tr>
+                </table>
+            </div>
+
+            
+            <div class="section-box">
+                <h4 style="color: #ec4899; margin-bottom: 12px;">⚽ PENALTIES (Optional)</h4>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold; width: 40%;">has_penalties</td>
+                        <td style="padding: 8px; color: #94a3b8;">true/false</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">home_penalty_takers</td>
+                        <td style="padding: 8px; color: #94a3b8;">"Name (g), Name (x)"</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">away_penalty_takers</td>
+                        <td style="padding: 8px; color: #94a3b8;">"Name (g), Name (x)"</td>
+                    </tr>
+            </div>
+            </table>
+        </div>
+        
+        <div class="section-box">
+
+            <h4 style="color: #8b5cf6; margin-bottom: 12px;">⚙️ STATS (Optional)</h4>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+
+            <p style="color: #94a3b8; font-size: 14px; margin: 0;">  MATCH_COLUMN_MAP </p>
+
+            <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+        
+'date': 'date', 'match_date': 'date', 'tanggal': 'date', 'game_date': 'date',</p>
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+# Teams  <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+'home_team': 'home_team', 'home': 'home_team', 'tim_tuan_rumah': 'home_team',
+'away_team': 'away_team', 'away': 'away_team', 'tim_tamu': 'away_team',</p>
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Goals<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_goals': 'home_goals', 'home_score': 'home_goals', 'hg': 'home_goals', 'fthg': 'home_goals',
+'away_goals': 'away_goals', 'away_score': 'away_goals', 'ag': 'away_goals', 'ftag': 'away_goals',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Goalscorers<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_goalscorers': 'home_goalscorers', 'pencetak_gol_kandang': 'home_goalscorers', 'home_scorers': 'home_goalscorers',
+'away_goalscorers': 'away_goalscorers', 'pencetak_gol_tamu': 'away_goalscorers', 'away_scorers': 'away_goalscorers',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Extra Time<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_goals_et': 'home_goals_et', 'home_goals_extratime': 'home_goals_et',
+'away_goals_et': 'away_goals_et', 'away_goals_extratime': 'away_goals_et',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Penalty Shootout<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'has_penalties': 'has_penalties', 'went_to_penalties': 'has_penalties',
+'home_penalties_scored': 'home_penalties_scored', 'home_penalty_goals': 'home_penalties_scored',
+'away_penalties_scored': 'away_penalties_scored', 'away_penalty_goals': 'away_penalties_scored',
+'home_penalties_attempted': 'home_penalties_attempted', 'home_penalty_attempts': 'home_penalties_attempted',
+'away_penalties_attempted': 'away_penalties_attempted', 'away_penalty_attempts': 'away_penalties_attempted',
+'penalty_details': 'penalty_details', 'penalty_takers': 'penalty_details',
+'home_penalty_takers': 'home_penalty_takers',
+'away_penalty_takers': 'away_penalty_takers',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# League/Season <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'league': 'league', 'liga': 'league', 'competition': 'league',
+'season': 'season', 'musim': 'season',
+'venue': 'venue', 'stadium': 'venue', 'stadion': 'venue',
+'referee': 'referee', 'wasit': 'referee',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Possession Stats<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_possession': 'home_possession', 'away_possession': 'away_possession',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Shots<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+'home_shots': 'home_total_shots', 'home_total_shots': 'home_total_shots',
+'away_shots': 'away_total_shots', 'away_total_shots': 'away_total_shots',
+'home_shots_on_target': 'home_shots_on_target', 'away_shots_on_target': 'away_shots_on_target',
+'home_shots_off_target': 'home_shots_off_target', 'away_shots_off_target': 'away_shots_off_target',
+'home_blocked_shots': 'home_blocked_shots', 'away_blocked_shots': 'away_blocked_shots',
+'home_shots_inside_box': 'home_shots_inside_box', 'away_shots_inside_box': 'away_shots_inside_box',
+'home_shots_outside_box': 'home_shots_outside_box', 'away_shots_outside_box': 'away_shots_outside_box',
+'home_hit_woodwork': 'home_hit_woodwork', 'away_hit_woodwork': 'away_hit_woodwork',
+'home_big_chances_scored': 'home_big_chances_scored', 'away_big_chances_scored': 'away_big_chances_scored',
+'home_big_chances_missed': 'home_big_chances_missed', 'away_big_chances_missed': 'away_big_chances_missed',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Passing <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_passes': 'home_total_passes', 'home_total_passes': 'home_total_passes',
+'away_passes': 'away_total_passes', 'away_total_passes': 'away_total_passes',
+'home_pass_accuracy': 'home_pass_accuracy', 'away_pass_accuracy': 'away_pass_accuracy',
+'home_key_passes': 'home_key_passes', 'away_key_passes': 'away_key_passes',
+'home_passes_final_third': 'home_passes_final_third', 'away_passes_final_third': 'away_passes_final_third',
+'home_passes_final_third_success': 'home_passes_final_third_success', 'away_passes_final_third_success': 'away_passes_final_third_success',
+'home_passes_into_penalty_area': 'home_passes_into_penalty_area', 'away_passes_into_penalty_area': 'away_passes_into_penalty_area',
+'home_through_balls': 'home_through_balls', 'away_through_balls': 'away_through_balls',
+'home_long_balls': 'home_long_balls', 'away_long_balls': 'away_long_balls',
+'home_long_balls_success': 'home_long_balls_success', 'away_long_balls_success': 'away_long_balls_success',
+'home_crosses': 'home_crosses', 'away_crosses': 'away_crosses',
+'home_crosses_success': 'home_crosses_success', 'away_crosses_success': 'away_crosses_success',
+'home_throw_ins': 'home_throw_ins', 'away_throw_ins': 'away_throw_ins',
+'home_final_third_entries': 'home_final_third_entries', 'away_final_third_entries': 'away_final_third_entries',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Dribbling<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_dribbles_attempted': 'home_dribbles_attempted', 'away_dribbles_attempted': 'away_dribbles_attempted',
+'home_dribbles_succeeded': 'home_dribbles_succeeded', 'away_dribbles_succeeded': 'away_dribbles_succeeded',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Defense <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_tackles': 'home_tackles_total', 'home_tackles_total': 'home_tackles_total',
+'away_tackles': 'away_tackles_total', 'away_tackles_total': 'away_tackles_total',
+'home_tackles_success': 'home_tackles_success', 'away_tackles_success': 'away_tackles_success',
+'home_interceptions': 'home_interceptions', 'away_interceptions': 'away_interceptions',
+'home_blocks': 'home_blocks', 'away_blocks': 'away_blocks',
+'home_clearances': 'home_clearances', 'away_clearances': 'away_clearances',
+'home_duels_won': 'home_duels_won', 'away_duels_won': 'away_duels_won',
+'home_duels_total': 'home_duels_total', 'away_duels_total': 'away_duels_total',
+'home_goalkeeper_saves': 'home_goalkeeper_saves', 'away_goalkeeper_saves': 'away_goalkeeper_saves',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Set Pieces & Discipline <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_corners': 'home_corners', 'away_corners': 'away_corners',
+'home_fouls': 'home_fouls', 'away_fouls': 'away_fouls',
+'home_yellow_cards': 'home_yellow_cards', 'away_yellow_cards': 'away_yellow_cards',
+'home_red_cards': 'home_red_cards', 'away_red_cards': 'away_red_cards',
+'home_offsides': 'home_offsides', 'away_offsides': 'away_offsides',
+<p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+# Advanced <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+
+'home_xg': 'home_xg', 'away_xg': 'away_xg'</p>
+</table>
+        </div>
+
+        <!-- PLAYER DATA GUIDE -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">👤 PLAYER DATA - Complete Mapping</span>
+            </div>
+            
+            <div class="section-box">
+                <h4 style="color: #f59e0b; margin-bottom: 12px;">🔴 REQUIRED (Must Have)</h4>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; width: 30%; color: #f8fafc; font-weight: bold;">name</td>
+                        <td style="padding: 8px; color: #94a3b8;">Player name (Mohamed Salah)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">team</td>
+                        <td style="padding: 8px; color: #94a3b8;">Team name (Liverpool)</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="section-box">
+                <h4 style="color: #6366f1; margin-bottom: 12px;">🔵 OPTIONAL Columns</h4>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold; width: 40%;">position</td>
+                        <td style="padding: 8px; color: #94a3b8;">RW, ST, GK, etc</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">nationality</td>
+                        <td style="padding: 8px; color: #94a3b8;">Egypt, England, etc</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">shirt_number</td>
+                        <td style="padding: 8px; color: #94a3b8;">11, 7, 9</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; color: #f8fafc; font-weight: bold;">match_id</td>
+                        <td style="padding: 8px; color: #94a3b8;">Match ID (if linking to match)</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="section-box">
+                <h4 style="color: #8b5cf6; margin-bottom: 12px;">📊 STATS (Optional)</h4>
+                                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+
+                <p style="color: #94a3b8; font-size: 14px; margin: 0;">PLAYER_COLUMN_MAP </p> 
+                <p style="color: #94a3b8; font-size: 12px; margin: 0;">{
+    'name': 'name', 'player_name': 'name', 'nama': 'name', 'player': 'name',
+    'team': 'team', 'team_name': 'team', 'tim': 'team', 'club': 'team',
+    'position': 'position', 'pos': 'position', 'posisi': 'position',
+    'nationality': 'nationality', 'nation': 'nationality', 'kebangsaan': 'nationality',
+    'shirt_number': 'shirt_number', 'number': 'shirt_number', 'no': 'shirt_number',
+    'match_id': 'match_id',
+    'minutes_played': 'minutes_played', 'minutes': 'minutes_played', 'mins': 'minutes_played',
+    'rating': 'rating', 'match_rating': 'rating',
+    'goals': 'goals', 'gol': 'goals',
+    'assists': 'assists', 'assist': 'assists',
+    'shots': 'shots', 'shots_on_target': 'shots_on_target',
+    'passes': 'passes', 'pass_accuracy': 'pass_accuracy',
+    'key_passes': 'key_passes',
+    'crosses': 'crosses',
+    'tackles': 'tackles', 'interceptions': 'interceptions',
+    'blocks': 'blocks', 'clearances': 'clearances',
+    'fouls_committed': 'fouls_committed', 'fouls_drawn': 'fouls_drawn',
+    'yellow_cards': 'yellow_cards', 'red_cards': 'red_cards',
+    'dribbles_attempted': 'dribbles_attempted', 'dribbles_succeeded': 'dribbles_succeeded',
+}
+</p>
+            </div>
+                            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 4: MANAGE DATA (DELETE) -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-manage" class="tab-content">
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">🗑️ Delete Matches</span>
+        </div>
+        <div id="matches-list" style="max-height: 400px; overflow-y: auto;">
+            <div style="text-align: center; padding: 20px; color: #94a3b8;">Loading matches...</div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">🗑️ Delete Players</span>
+        </div>
+        <div id="players-list" style="max-height: 400px; overflow-y: auto;">
+            <div style="text-align: center; padding: 20px; color: #94a3b8;">Loading players...</div>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header">
-            <span class="card-title">Enter Match Data Manually</span>
+            <span class="card-title">🗑️ Delete Teams</span>
         </div>
-        <form id="manual-entry-form" onsubmit="event.preventDefault(); submitManualEntry();">
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Home Team *</label>
-                    <input type="text" name="home_team" class="form-input" placeholder="e.g. Arsenal" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Away Team *</label>
-                    <input type="text" name="away_team" class="form-input" placeholder="e.g. Chelsea" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Home Goals</label>
-                    <input type="number" name="home_goals" class="form-input" value="0" min="0">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Away Goals</label>
-                    <input type="number" name="away_goals" class="form-input" value="0" min="0">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Date</label>
-                    <input type="date" name="date" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">League</label>
-                    <input type="text" name="league" class="form-input" placeholder="e.g. Premier League">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Season</label>
-                    <input type="text" name="season" class="form-input" placeholder="e.g. 2024/2025">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Venue</label>
-                    <input type="text" name="venue" class="form-input" placeholder="e.g. Emirates Stadium">
-                </div>
-            </div>
-
-            <h4 style="margin: 20px 0 12px; color: var(--text-secondary);">Match Statistics (Optional)</h4>
-            <div class="grid-4">
-                <div class="form-group">
-                    <label class="form-label">Home Possession %</label>
-                    <input type="number" name="home_possession" class="form-input" step="0.1" min="0" max="100">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Away Possession %</label>
-                    <input type="number" name="away_possession" class="form-input" step="0.1" min="0" max="100">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Home Shots</label>
-                    <input type="number" name="home_shots" class="form-input" min="0">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Away Shots</label>
-                    <input type="number" name="away_shots" class="form-input" min="0">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Home xG</label>
-                    <input type="number" name="home_xg" class="form-input" step="0.01" min="0">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Away xG</label>
-                    <input type="number" name="away_xg" class="form-input" step="0.01" min="0">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Home Passes</label>
-                    <input type="number" name="home_passes" class="form-input" min="0">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Away Passes</label>
-                    <input type="number" name="away_passes" class="form-input" min="0">
-                </div>
-            </div>
-            <div class="mt-2">
-                <button type="submit" class="btn btn-accent">💾 Save Match Data</button>
-            </div>
-        </form>
+        <div id="teams-list" style="max-height: 400px; overflow-y: auto;">
+            <div style="text-align: center; padding: 20px; color: #94a3b8;">Loading teams...</div>
+        </div>
     </div>
 </div>
 
-<!-- API Import Tab -->
-<div id="tab-api" class="tab-content">
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TAB 5: UPLOAD HISTORY -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-history" class="tab-content">
+    {% if history %}
     <div class="card">
         <div class="card-header">
-            <span class="card-title">Import from API-Football</span>
-            <span class="badge badge-info">Requires API Key</span>
+            <span class="card-title">📋 Upload History</span>
         </div>
-        <p class="text-secondary mb-2">
-            Connect to API-Football to automatically fetch match data, team statistics, and player performances.
-            Set your API key via the <code>API_FOOTBALL_KEY</code> environment variable.
-        </p>
-        <div class="grid-3">
-            <div class="form-group">
-                <label class="form-label">League ID</label>
-                <input type="number" id="api-league" class="form-input" placeholder="e.g. 39 (Premier League)">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Season</label>
-                <input type="number" id="api-season" class="form-input" placeholder="e.g. 2024">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Last N Matches</label>
-                <input type="number" id="api-last" class="form-input" placeholder="Leave empty for all">
-            </div>
-        </div>
-        <button class="btn btn-primary" onclick="fetchFromAPI()">🔄 Fetch Data</button>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Source</th>
+                    <th>Type</th>
+                    <th>Rows</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in history %}
+                <tr>
+                    <td>{{ h.filename }}</td>
+                    <td><span class="badge badge-info">{{ h.source_type }}</span></td>
+                    <td>
+                        {% if 'player' in h.filename.lower() %}
+                            <span class="badge badge-secondary">Player</span>
+                        {% else %}
+                            <span class="badge badge-secondary">Match</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ h.row_count }}</td>
+                    <td>
+                        {% if h.status == 'success' %}
+                            <span class="badge badge-success">✅ Success</span>
+                        {% elif h.status == 'partial' %}
+                            <span class="badge badge-warning">⚠️ Partial</span>
+                        {% else %}
+                            <span class="badge badge-danger">❌ Failed</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ h.upload_date.strftime('%d %b %Y %H:%M') if h.upload_date else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
+    {% else %}
+    <div class="alert alert-info">
+        📭 No upload history yet. Start by uploading your first file!
+    </div>
+    {% endif %}
 </div>
 
-<!-- Upload History -->
-{% if history %}
-<div class="card mt-3">
-    <div class="card-header">
-        <span class="card-title">📋 Upload History</span>
-    </div>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>File</th>
-                <th>Source</th>
-                <th>Rows</th>
-                <th>Status</th>
-                <th>Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for h in history %}
-            <tr>
-                <td>{{ h.filename }}</td>
-                <td><span class="badge badge-info">{{ h.source_type }}</span></td>
-                <td>{{ h.row_count }}</td>
-                <td>
-                    {% if h.status == 'success' %}
-                        <span class="badge badge-success">Success</span>
-                    {% elif h.status == 'partial' %}
-                        <span class="badge badge-warning">Partial</span>
-                    {% else %}
-                        <span class="badge badge-danger">Failed</span>
-                    {% endif %}
-                </td>
-                <td>{{ h.upload_date.strftime('%d %b %Y %H:%M') if h.upload_date else '' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endif %}
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- STYLES -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <style>
-.tabs {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-}
+    .custom-tabs {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 20px 0;
+    }
 
-.tab {
-    padding: 12px 18px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    background: #1f2937;
-    color: #9ca3af;
-    font-weight: 600;
-    transition: all 0.25s ease;
-}
+    .tab-btn {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #94a3b8;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
 
-.tab:hover {
-    background: #374151;
-    color: white;
-}
+    .tab-btn:hover {
+        background-color: rgba(255, 255, 255, 0.08);
+        color: #f8fafc;
+        transform: translateY(-2px);
+    }
 
-.tab.active {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-}
+    .tab-btn.active {
+        background-color: #1e293b;
+        border: 1px solid #4803f5;
+        color: #ffffff;
+    }
 
-.tab-content {
-    display: none;
-}
+    .tab-content {
+        display: none;
+        animation: fadeIn 0.4s ease-in-out;
+    }
 
-.tab-content.active {
-    display: block;
-}
+    .tab-content.active {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .section-box {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .delete-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+
+    .delete-item-info {
+        flex: 1;
+    }
+
+    .delete-item-info strong {
+        display: block;
+        color: #f8fafc;
+        margin-bottom: 4px;
+    }
+
+    .delete-item-info small {
+        color: #64748b;
+    }
+
+    .delete-btn {
+        background-color: #dc2626;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .delete-btn:hover {
+        background-color: #991b1b;
+        transform: scale(1.05);
+    }
+
+    .delete-btn:disabled {
+        background-color: #6b7280;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .alert-info {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 8px;
+        padding: 15px;
+        color: #93c5fd;
+    }
+
+    .flex-between {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .flex {
+        display: flex;
+        gap: 8px;
+    }
+
+    .gap-1 {
+        gap: 8px;
+    }
+
+    .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
 </style>
-<script>
-document.addEventListener("DOMContentLoaded", function () {
 
-    // =========================
-    // TAB SWITCHER
-    // =========================
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT - ALL INLINE & FIXED -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// PROPER NOTIFICATION FUNCTION
+// ═══════════════════════════════════════════════════════════════════
+function showToast(message, type = 'info') {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    
+    // Cek apakah ada existing toast container
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? '#10b981' : type === 'error' ? '#dc2626' : '#3b82f6';
+    
+    toast.style.cssText = `
+        background-color: ${bgColor};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        animation: slideIn 0.3s ease-in;
+    `;
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+    
+    // Auto remove
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DELETE FUNCTIONS - WITH PROPER ERROR HANDLING
+// ═══════════════════════════════════════════════════════════════════
+
+function deleteMatch(matchId) {
+    console.log(`🗑️ DELETE MATCH: ${matchId}`);
+    
+    if (!confirm("⚠️ Delete this match PERMANENTLY?\n\nThis action CANNOT be undone!")) {
+        console.log("❌ Delete cancelled");
+        return;
+    }
+    
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Deleting...';
+    
+    fetch(`/api/delete/match/${matchId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Response:', data);
+        
+        if (data.success) {
+            showToast(`✅ ${data.message}`, 'success');
+            setTimeout(() => {
+                loadMatchesList();
+            }, 500);
+        } else {
+            showToast(`❌ ${data.error}`, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '🗑️ Delete';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast(`❌ Error: ${error.message}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '🗑️ Delete';
+    });
+}
+
+function deletePlayer(playerId) {
+    console.log(`🗑️ DELETE PLAYER: ${playerId}`);
+    
+    if (!confirm("⚠️ Delete this player PERMANENTLY?")) {
+        return;
+    }
+    
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Deleting...';
+    
+    fetch(`/api/delete/player/${playerId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`✅ ${data.message}`, 'success');
+            setTimeout(() => loadPlayersList(), 500);
+        } else {
+            showToast(`❌ ${data.error}`, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '🗑️ Delete';
+        }
+    })
+    .catch(error => {
+        showToast(`❌ Error: ${error.message}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '🗑️ Delete';
+    });
+}
+
+function deleteTeam(teamId) {
+    console.log(`🗑️ DELETE TEAM: ${teamId}`);
+    
+    if (!confirm("⚠️ Delete this team PERMANENTLY?\n\nThis will also delete associated players!")) {
+        return;
+    }
+    
+    const btn = event.target;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Deleting...';
+    
+    fetch(`/api/delete/team/${teamId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`✅ ${data.message}`, 'success');
+            setTimeout(() => loadTeamsList(), 500);
+        } else {
+            showToast(`❌ ${data.error}`, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '🗑️ Delete';
+        }
+    })
+    .catch(error => {
+        showToast(`❌ Error: ${error.message}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '🗑️ Delete';
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOAD LIST FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function loadMatchesList() {
+    console.log("🔄 Loading matches...");
+    
+    fetch('/api/matches')
+        .then(response => response.json())
+        .then(matches => {
+            console.log(`✅ Loaded ${matches.length} matches`);
+            const container = document.getElementById('matches-list');
+            
+            if (!matches || matches.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">No matches</p>';
+                return;
+            }
+
+            let html = '';
+            matches.forEach(match => {
+                const date = new Date(match.date).toLocaleDateString();
+                html += `
+                    <div class="delete-item">
+                        <div class="delete-item-info">
+                            <strong>${match.home_team_name} vs ${match.away_team_name}</strong>
+                            <small>${match.home_goals}-${match.away_goals} | ${date} | ${match.league || 'N/A'}</small>
+                        </div>
+                        <button class="delete-btn" onclick="deleteMatch(${match.id})">🗑️</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('matches-list').innerHTML = '<p style="color: #dc2626; padding: 20px;">Error loading matches</p>';
+        });
+}
+
+function loadPlayersList() {
+    console.log("🔄 Loading players...");
+    
+    fetch('/api/players')
+        .then(response => response.json())
+        .then(players => {
+            console.log(`✅ Loaded ${players.length} players`);
+            const container = document.getElementById('players-list');
+            
+            if (!players || players.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">No players</p>';
+                return;
+            }
+
+            let html = '';
+            players.forEach(player => {
+                html += `
+                    <div class="delete-item">
+                        <div class="delete-item-info">
+                            <strong>${player.name}</strong>
+                            <small>${player.team_name || 'No Team'} | ${player.position || 'N/A'}</small>
+                        </div>
+                        <button class="delete-btn" onclick="deletePlayer(${player.id})">🗑️</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('players-list').innerHTML = '<p style="color: #dc2626; padding: 20px;">Error loading players</p>';
+        });
+}
+
+function loadTeamsList() {
+    console.log("🔄 Loading teams...");
+    
+    fetch('/api/teams')
+        .then(response => response.json())
+        .then(teams => {
+            console.log(`✅ Loaded ${teams.length} teams`);
+            const container = document.getElementById('teams-list');
+            
+            if (!teams || teams.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">No teams</p>';
+                return;
+            }
+
+            let html = '';
+            teams.forEach(team => {
+                html += `
+                    <div class="delete-item">
+                        <div class="delete-item-info">
+                            <strong>${team.name}</strong>
+                            <small>ID: ${team.id}</small>
+                        </div>
+                        <button class="delete-btn" onclick="deleteTeam(${team.id})">🗑️</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('teams-list').innerHTML = '<p style="color: #dc2626; padding: 20px;">Error loading teams</p>';
+        });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILE UPLOAD
+// ═══════════════════════════════════════════════════════════════════
+
+function displayFileName(input) {
+    const display = document.getElementById("file-name-display");
+    if (input.files && input.files.length > 0) {
+        display.textContent = "✅ Selected: " + input.files[0].name;
+    } else {
+        display.textContent = "";
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════════════════
+
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("✅ DOM loaded - Initializing...");
+    
+    // Tab switcher
     const tabs = document.querySelectorAll(".tab");
     const tabContents = document.querySelectorAll(".tab-content");
 
     tabs.forEach(tab => {
         tab.addEventListener("click", function () {
             const target = this.getAttribute("data-tab");
-
-            // reset active state
+            
             tabs.forEach(btn => btn.classList.remove("active"));
             tabContents.forEach(content => {
                 content.classList.remove("active");
                 content.style.display = "none";
             });
 
-            // activate current
             this.classList.add("active");
-
             const activeContent = document.getElementById(target);
             if (activeContent) {
                 activeContent.classList.add("active");
                 activeContent.style.display = "block";
+                
+                // Load lists saat tab manage dibuka
+                if (target === "tab-manage") {
+                    setTimeout(() => {
+                        loadMatchesList();
+                        loadPlayersList();
+                        loadTeamsList();
+                    }, 300);
+                }
             }
         });
     });
-
-    // init first tab
-    tabContents.forEach(content => content.style.display = "none");
-
-    const firstActive = document.querySelector(".tab-content.active");
-    if (firstActive) {
-        firstActive.style.display = "block";
-    }
-
-
-    // =========================
-    // FILE NAME DISPLAY
-    // =========================
-    window.displayFileName = function(input) {
-        const display = document.getElementById("file-name-display");
-
-        if (input.files && input.files.length > 0) {
-            display.textContent = "Selected: " + input.files[0].name;
-        } else {
-            display.textContent = "";
-        }
-    };
-
-
-    // =========================
-    // API FETCH
-    // =========================
-    window.fetchFromAPI = function() {
-        const leagueId = document.getElementById("api-league").value;
-        const season = document.getElementById("api-season").value;
-        const last = document.getElementById("api-last").value;
-
-        if (!leagueId || !season) {
-            showToast("League ID and Season are required", "warning");
-            return;
-        }
-
-        showToast("Fetching data from API-Football...", "info");
-
-        fetch("/api/fetch-api", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                league_id: leagueId,
-                season: season,
-                last: last || null
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast(`Imported ${data.matches_imported} matches!`, "success");
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showToast(
-                    data.errors?.[0] || "API fetch failed",
-                    "error"
-                );
-            }
-        })
-        .catch(error => {
-            showToast("Error: " + error.message, "error");
-        });
-    };
-
+    
+    console.log("✅ All event listeners attached");
 });
+
+// Add CSS for toast animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
 </script>
+
 {% endblock %}

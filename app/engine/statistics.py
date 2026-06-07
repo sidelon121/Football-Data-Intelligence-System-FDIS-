@@ -139,7 +139,6 @@ def get_team_overview(team_id):
         'form_string': ''.join(form),
     }
 
-
 def get_match_analysis(match_id):
     """
     Get detailed statistical analysis for a specific match.
@@ -155,15 +154,12 @@ def get_match_analysis(match_id):
         match_id=match_id, team_id=match.away_team_id
     ).first()
 
-    # ==========================================
-    # 🔥 SOLUSI FINAL: INISIALISASI VARIABEL DI SINI
-    # ==========================================
     metrics_final = {}
     metrics_circle = []
 
     # Determine dominance metrics
     if home_stats and away_stats:
-        # 1. Inisialisasi list HANYA untuk metrics_bar
+        # 1. Definisi Kolom Bar Metrics (Tuple: Atribut DB, Label, Satuan)
         metrics_bar = [
             ('xg', 'Expected Goals', ''),
             ('possession', 'Possession', '%'),
@@ -171,7 +167,7 @@ def get_match_analysis(match_id):
             ('total_shots', 'Total Shots', ''),
             ('hit_woodwork', 'Hit Woodwork', ''),
             ('passes_into_penalty_area', 'Passes into Box', ''),
-            ("final_third_entries", 'Final Third Entries', ''),
+            ('final_third_entries', 'Final Third Entries', ''),
             ('throw_ins', 'Throw-ins', ''),
             ('corners', 'Corners', ''),
             ('interceptions', 'Interceptions', ''),
@@ -184,130 +180,116 @@ def get_match_analysis(match_id):
             ('red_cards', 'Red Cards', ''),
         ]
 
-        for item in metrics_bar:
-                    metrics_final[item['label']] = {
-                        'home': item['home'],
-                        'away': item['away'],
-                        'label': item['label'],
-                        'unit': item['unit'],
-                        'dominant': 'home' if item['home'] > item['away'] else 'away' if item['away'] > item['home'] else 'none'
-                    }
+        # 2. PROSES BAR METRICS DENGAN BENAR
+        for attr_name, label_name, unit_str in metrics_bar:
+            # Mengambil nilai dari database secara dinamis menggunakan getattr
+            h_val = getattr(home_stats, attr_name, 0) or 0
+            a_val = getattr(away_stats, attr_name, 0) or 0
             
+            # Pastikan tipe data berupa angka untuk perbandingan
+            h_val = float(h_val) if h_val is not None else 0.0
+            a_val = float(a_val) if a_val is not None else 0.0
 
-# ==========================================
-# 3. STATISTIK LINGKARAN (DONUT CHARTS)
-# ==========================================
+            # Penentuan Dominasi
+            if h_val > a_val:
+                dominant = 'home'
+            elif a_val > h_val:
+                dominant = 'away'
+            else:
+                dominant = 'none'
 
-# ----------------------
-# RAW VALUES
-# ----------------------
+            # Ubah float jadi int jika angkanya bulat (misal 5.0 jadi 5)
+            h_val = int(h_val) if h_val.is_integer() else h_val
+            a_val = int(a_val) if a_val.is_integer() else a_val
 
-        # PASSING
+            # Masukkan ke dictionary akhir
+            metrics_final[label_name] = {
+                'home': h_val,
+                'away': a_val,
+                'label': label_name,
+                'unit': unit_str,
+                'dominant': dominant
+            }
+
+        # ==========================================
+        # 3. STATISTIK LINGKARAN (DONUT CHARTS)
+        # ==========================================
+
+        # ----------------------
+        # RAW VALUES
+        # ----------------------
         h_passes = getattr(home_stats, 'total_passes', 0) or 0
         a_passes = getattr(away_stats, 'total_passes', 0) or 0
-
         h_pass_acc = getattr(home_stats, 'pass_accuracy', 0.0) or 0.0
         a_pass_acc = getattr(away_stats, 'pass_accuracy', 0.0) or 0.0
-
         h_acc_passes = int(h_passes * (h_pass_acc / 100))
         a_acc_passes = int(a_passes * (a_pass_acc / 100))
 
-
-        # SHOOTING
         h_shots = getattr(home_stats, 'total_shots', 0) or 0
         a_shots = getattr(away_stats, 'total_shots', 0) or 0
-
         h_sot = getattr(home_stats, 'shots_on_target', 0) or 0
         a_sot = getattr(away_stats, 'shots_on_target', 0) or 0
-
         h_off = getattr(home_stats, 'shots_off_target', 0) or 0
         a_off = getattr(away_stats, 'shots_off_target', 0) or 0
-
         h_blocked = getattr(home_stats, 'blocked_shots', 0) or 0
         a_blocked = getattr(away_stats, 'blocked_shots', 0) or 0
-
         h_inside = getattr(home_stats, 'shots_inside_box', 0) or 0
         a_inside = getattr(away_stats, 'shots_inside_box', 0) or 0
-
         h_outside = getattr(home_stats, 'shots_outside_box', 0) or 0
         a_outside = getattr(away_stats, 'shots_outside_box', 0) or 0
 
-
-        # DRIBBLES
         h_drib_att = getattr(home_stats, 'dribbles_attempted', 0) or 0
         a_drib_att = getattr(away_stats, 'dribbles_attempted', 0) or 0
-
         h_drib_suc = getattr(home_stats, 'dribbles_succeeded', 0) or 0
         a_drib_suc = getattr(away_stats, 'dribbles_succeeded', 0) or 0
-
         h_drib_att = max(h_drib_att, h_drib_suc)
         a_drib_att = max(a_drib_att, a_drib_suc)
 
-
-        # BIG CHANCES
         h_bc_scored = getattr(home_stats, 'big_chances_scored', 0) or 0
         a_bc_scored = getattr(away_stats, 'big_chances_scored', 0) or 0
-
         h_bc_missed = getattr(home_stats, 'big_chances_missed', 0) or 0
         a_bc_missed = getattr(away_stats, 'big_chances_missed', 0) or 0
-
         h_bc_tot = h_bc_scored + h_bc_missed
         a_bc_tot = a_bc_scored + a_bc_missed
         
-        # Duels
         h_duels_won = getattr(home_stats, 'duels_won', 0) or 0
         a_duels_won = getattr(away_stats, 'duels_won', 0) or 0
-
         h_duels_total = getattr(home_stats, 'duels_total', 0) or 0
         a_duels_total = getattr(away_stats, 'duels_total', 0) or 0
         
-        #tackles
         h_tackles_success = getattr(home_stats, 'tackles_success', 0) or 0
         a_tackles_success = getattr(away_stats, 'tackles_success', 0) or 0
-
         h_tackles_total = getattr(home_stats, 'tackles_total', 0) or 0
         a_tackles_total = getattr(away_stats, 'tackles_total', 0) or 0
 
         h_final_third_success = getattr(home_stats, "passes_final_third_success", 0) or 0
         a_final_third_success = getattr(away_stats, "passes_final_third_success", 0) or 0
-
         h_final_third = getattr(home_stats, "passes_final_third", 0) or 0
         a_final_third = getattr(away_stats, "passes_final_third", 0) or 0
         
         h_long_success = getattr(home_stats, "long_balls_success", 0) or 0
         a_long_success = getattr(away_stats, "long_balls_success", 0) or 0
-
         h_long = getattr(home_stats, "long_balls", 0) or 0
         a_long = getattr(away_stats, "long_balls", 0) or 0
         
         h_cross_success = getattr(home_stats, "crosses_success", 0) or 0
         a_cross_success = getattr(away_stats, "crosses_success", 0) or 0
-
         h_cross = getattr(home_stats, "crosses", 0) or 0
         a_cross = getattr(away_stats, "crosses", 0) or 0
+
         # ----------------------
-        # A. PASS ACCURACY
+        # APPEND CIRCLE METRICS
         # ----------------------
         if h_passes > 0 or a_passes > 0:
             metrics_circle.append({
                 'label': 'Pass Accuracy',
                 'labels': ['Accurate', 'Failed'],
-                'home_values': [
-                    h_acc_passes,
-                    max(h_passes - h_acc_passes, 0)
-                ],
-                'away_values': [
-                    a_acc_passes,
-                    max(a_passes - a_acc_passes, 0)
-                ],
+                'home_values': [h_acc_passes, max(h_passes - h_acc_passes, 0)],
+                'away_values': [a_acc_passes, max(a_passes - a_acc_passes, 0)],
                 'home_text': f"{h_acc_passes}/{h_passes}" if h_passes > 0 else "0/0",
                 'away_text': f"{a_acc_passes}/{a_passes}" if a_passes > 0 else "0/0"
             })
 
-
-        # ----------------------
-        # B. SHOT DISTRIBUTION
-        # ----------------------
         metrics_circle.append({
             'label': 'Shot Distribution',
             'labels': ['On Target', 'Off Target', 'Blocked'],
@@ -317,10 +299,6 @@ def get_match_analysis(match_id):
             'away_text': f"{a_sot}/{a_shots}" if a_shots > 0 else "0/0"
         })
 
-
-        # ----------------------
-        # C. SHOT LOCATION
-        # ----------------------
         metrics_circle.append({
             'label': 'Shot Location',
             'labels': ['Inside Box', 'Outside Box'],
@@ -330,30 +308,16 @@ def get_match_analysis(match_id):
             'away_text': f"{a_inside}/{a_shots}" if a_shots > 0 else "0/0"
         })
 
-
-        # ----------------------
-        # D. DRIBBLE SUCCESS
-        # ----------------------
         if h_drib_att > 0 or a_drib_att > 0:
             metrics_circle.append({
                 'label': 'Dribble Success',
                 'labels': ['Success', 'Failed'],
-                'home_values': [
-                    h_drib_suc,
-                    max(h_drib_att - h_drib_suc, 0)
-                ],
-                'away_values': [
-                    a_drib_suc,
-                    max(a_drib_att - a_drib_suc, 0)
-                ],
+                'home_values': [h_drib_suc, max(h_drib_att - h_drib_suc, 0)],
+                'away_values': [a_drib_suc, max(a_drib_att - a_drib_suc, 0)],
                 'home_text': f"{h_drib_suc}/{h_drib_att}" if h_drib_att > 0 else "0/0",
                 'away_text': f"{a_drib_suc}/{a_drib_att}" if a_drib_att > 0 else "0/0"
             })
 
-
-        # ----------------------
-        # E. BIG CHANCES
-        # ----------------------
         if h_bc_tot > 0 or a_bc_tot > 0:
             metrics_circle.append({
                 'label': 'Big Chances',
@@ -364,93 +328,51 @@ def get_match_analysis(match_id):
                 'away_text': f"{a_bc_scored}/{a_bc_tot}" if a_bc_tot > 0 else "0/0"
             })    
         
-            metrics_circle.append({
-                'label': 'Duels Won',
-                'labels': ['Won', 'Lost'],
-                'home_values': [
-                    h_duels_won,
-                    max(h_duels_total - h_duels_won, 0)
-                ],
-                'away_values': [
-                    a_duels_won,
-                    max(a_duels_total - a_duels_won, 0)
-                ],
-                'home_text': f"{h_duels_won}/{h_duels_total}" if h_duels_total > 0 else "0/0",
-                'away_text': f"{a_duels_won}/{a_duels_total}" if a_duels_total > 0 else "0/0"
-            })
+        metrics_circle.append({
+            'label': 'Duels Won',
+            'labels': ['Won', 'Lost'],
+            'home_values': [h_duels_won, max(h_duels_total - h_duels_won, 0)],
+            'away_values': [a_duels_won, max(a_duels_total - a_duels_won, 0)],
+            'home_text': f"{h_duels_won}/{h_duels_total}" if h_duels_total > 0 else "0/0",
+            'away_text': f"{a_duels_won}/{a_duels_total}" if a_duels_total > 0 else "0/0"
+        })
             
-            metrics_circle.append({
-                'label': 'Tackle Success',
-                'labels': ['Success', 'Failed'],
-                'home_values': [
-                    h_tackles_success,
-                    max(h_tackles_total - h_tackles_success, 0)
-                ],
-                'away_values': [
-                    a_tackles_success,
-                    max(a_tackles_total - a_tackles_success, 0)
-                ],
-                'home_text': f"{h_tackles_success}/{h_tackles_total}" if h_tackles_total > 0 else "0/0",
-                'away_text': f"{a_tackles_success}/{a_tackles_total}" if a_tackles_total > 0 else "0/0"
-            })
+        metrics_circle.append({
+            'label': 'Tackle Success',
+            'labels': ['Success', 'Failed'],
+            'home_values': [h_tackles_success, max(h_tackles_total - h_tackles_success, 0)],
+            'away_values': [a_tackles_success, max(a_tackles_total - a_tackles_success, 0)],
+            'home_text': f"{h_tackles_success}/{h_tackles_total}" if h_tackles_total > 0 else "0/0",
+            'away_text': f"{a_tackles_success}/{a_tackles_total}" if a_tackles_total > 0 else "0/0"
+        })
                 
-            metrics_circle.append({
-                "label": "Passes Final Third",
-                "labels": ["Success", "Failed"],
-                "home_values": [
-                    h_final_third_success,
-                    max(h_final_third - h_final_third_success, 0)
-                ],
-                "away_values": [
-                    a_final_third_success,
-                    max(a_final_third - a_final_third_success, 0)
-                ],
-                "home_text": f"{h_final_third_success}/{h_final_third}",
-                "away_text": f"{a_final_third_success}/{a_final_third}"
-            })
-
-
-            metrics_circle.append({
-                "label": "Long Balls",
-                "labels": ["Success", "Failed"],
-                "home_values": [
-                    h_long_success,
-                    max(h_long - h_long_success, 0)
-                ],
-                "away_values": [
-                    a_long_success,
-                    max(a_long - a_long_success, 0)
-                ],
-                "home_text": f"{h_long_success}/{h_long}",
-                "away_text": f"{a_long_success}/{a_long}"
-            })
+        metrics_circle.append({
+            "label": "Passes Final Third",
+            "labels": ["Success", "Failed"],
+            "home_values": [h_final_third_success, max(h_final_third - h_final_third_success, 0)],
+            "away_values": [a_final_third_success, max(a_final_third - a_final_third_success, 0)],
+            "home_text": f"{h_final_third_success}/{h_final_third}",
+            "away_text": f"{a_final_third_success}/{a_final_third}"
+        })
 
         metrics_circle.append({
-            "label": "Cross Accuracy",
+            "label": "Long Balls",
             "labels": ["Success", "Failed"],
-            "home_values": [
-                h_cross_success,
-                max(h_cross - h_cross_success, 0)
-            ],
-            "away_values": [
-                a_cross_success,
-                max(a_cross - a_cross_success, 0)
-            ],
-            "home_text": f"{h_cross_success}/{h_cross}" if h_cross > 0 else "0/0",
-            "away_text": f"{a_cross_success}/{a_cross}" if a_cross > 0 else "0/0"
+            "home_values": [h_long_success, max(h_long - h_long_success, 0)],
+            "away_values": [a_long_success, max(a_long - a_long_success, 0)],
+            "home_text": f"{h_long_success}/{h_long}",
+            "away_text": f"{a_long_success}/{a_long}"
         })
-        # ==========================================
-        # 4. KONVERSI KE FORMAT HTML (data.metrics)
-        # ==========================================
-        metrics_final = {}
-        for item in metrics_bar:
-            metrics_final[item['label']] = {
-                'home': item['home'],
-                'away': item['away'],
-                'label': item['label'],
-                'unit': item['unit'],
-                'dominant': 'home' if item['home'] > item['away'] else 'away' if item['away'] > item['home'] else 'none'
-            }
+
+        if h_cross > 0 or a_cross > 0:
+            metrics_circle.append({
+                "label": "Cross Accuracy",
+                "labels": ["Success", "Failed"],
+                "home_values": [h_cross_success, max(h_cross - h_cross_success, 0)],
+                "away_values": [a_cross_success, max(a_cross - a_cross_success, 0)],
+                "home_text": f"{h_cross_success}/{h_cross}" if h_cross > 0 else "0/0",
+                "away_text": f"{a_cross_success}/{a_cross}" if a_cross > 0 else "0/0"
+            })
     
     return {
         'match': match.to_dict(),
